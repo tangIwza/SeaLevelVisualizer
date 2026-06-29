@@ -166,6 +166,24 @@ body {
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
+  body {
+    display: block;
+  }
+
+  .app-container {
+    padding: 0;
+    min-height: 100vh;
+  }
+  
+  .dashboard-card {
+    padding: 1rem;
+    border-radius: 0;
+    border: none;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  
   .dashboard-header {
     flex-direction: column;
     align-items: flex-start;
@@ -179,13 +197,10 @@ body {
   .custom-select {
     width: 100%;
   }
-  
-  .app-container {
-    padding: 1rem;
-  }
-  
-  .dashboard-card {
-    padding: 1.5rem;
+
+  .chart-container {
+    flex-grow: 1;
+    min-height: 300px;
   }
 }
 
@@ -259,4 +274,15 @@ body {
   .stats-container {
     flex-direction: column;
   }
+}
+
+/* Style for native date picker icon */
+::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
 }

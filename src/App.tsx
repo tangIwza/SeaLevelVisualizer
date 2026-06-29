@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
-import { Calendar, Clock, MapPin, TrendingUp, TrendingDown } from 'lucide-react';
+import { MapPin, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface DayData {
   day: number;
@@ -12,16 +12,12 @@ interface MonthData {
   days: DayData[];
 }
 
-const MONTH_NAMES = [
-  "January", "February", "March", "April", "May", "June", 
-  "July", "August", "September", "October", "November", "December"
-];
-
 function App() {
   const [data, setData] = useState<MonthData[]>([]);
-  const today = new Date();
-  const [selectedMonth, setSelectedMonth] = useState<number>(today.getMonth() + 1);
-  const [selectedDay, setSelectedDay] = useState<number>(today.getDate());
+  const [selectedDate, setSelectedDate] = useState<string>(() => {
+    const today = new Date();
+    return `2026-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  });
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,6 +37,9 @@ function App() {
         setLoading(false);
       });
   }, []);
+
+  const selectedMonth = parseInt(selectedDate.split('-')[1], 10);
+  const selectedDay = parseInt(selectedDate.split('-')[2], 10);
 
   // Compute the data for the chart based on current selection
   const chartData = useMemo(() => {
@@ -69,23 +68,9 @@ function App() {
     return { min, max };
   }, [chartData]);
 
-  // When month changes, check if the selected day is still valid for this month
-  const handleMonthChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newMonth = parseInt(e.target.value);
-    setSelectedMonth(newMonth);
-    
-    // Find how many days are in this new month
-    const newMonthData = data.find(m => m.month === newMonth);
-    if (newMonthData) {
-      const maxDays = newMonthData.days.length;
-      if (selectedDay > maxDays) {
-        setSelectedDay(maxDays);
-      }
-    }
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSelectedDate(e.target.value);
   };
-
-  const activeMonthData = data.find(m => m.month === selectedMonth);
-  const availableDays = activeMonthData ? activeMonthData.days.map(d => d.day) : [];
 
   if (loading) {
     return (
@@ -119,36 +104,16 @@ function App() {
           </div>
           
           <div className="controls-group">
-            {/* Month Filter */}
+            {/* Date Picker */}
             <div className="select-wrapper">
-              <select 
+              <input 
+                type="date"
                 className="custom-select" 
-                value={selectedMonth} 
-                onChange={handleMonthChange}
-              >
-                {data.map(m => (
-                  <option key={m.month} value={m.month}>
-                    {MONTH_NAMES[m.month - 1]}
-                  </option>
-                ))}
-              </select>
-              <Calendar className="select-icon" size={16} />
-            </div>
-
-            {/* Day Filter */}
-            <div className="select-wrapper">
-              <select 
-                className="custom-select" 
-                value={selectedDay} 
-                onChange={e => setSelectedDay(parseInt(e.target.value))}
-              >
-                {availableDays.map(day => (
-                  <option key={day} value={day}>
-                    Day {day}
-                  </option>
-                ))}
-              </select>
-              <Clock className="select-icon" size={16} />
+                value={selectedDate} 
+                onChange={handleDateChange}
+                min="2026-01-01"
+                max="2026-12-31"
+              />
             </div>
           </div>
         </div>
