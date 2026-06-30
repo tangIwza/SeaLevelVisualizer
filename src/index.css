@@ -246,11 +246,11 @@ body {
   .controls-group {
     width: 100%;
     display: grid;
-    grid-template-columns: auto 1fr;
+    grid-template-columns: auto 1fr auto;
     gap: 0.5rem;
   }
   
-  .controls-group > button {
+  .controls-group > button:first-of-type {
     grid-column: 1 / 2;
     grid-row: 2 / 3;
     padding: 0.5rem 0.6rem;
@@ -263,6 +263,11 @@ body {
   
   .controls-group > .date-wrapper {
     grid-column: 2 / 3;
+    grid-row: 2 / 3;
+  }
+
+  .controls-group > .fishing-btn {
+    grid-column: 3 / 4;
     grid-row: 2 / 3;
   }
 

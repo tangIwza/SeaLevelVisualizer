@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart, ReferenceDot } from 'recharts';
-import { MapPin, TrendingUp, TrendingDown, Moon, Map as MapIcon, CloudSun, CloudRain, CloudLightning, Waves } from 'lucide-react';
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart, ReferenceDot, ReferenceArea } from 'recharts';
+import { MapPin, TrendingUp, TrendingDown, Moon, Map as MapIcon, CloudSun, CloudRain, CloudLightning, Waves, Fish } from 'lucide-react';
 import { LunarModal } from './LunarModal';
 import { MapModal } from './MapModal';
 import { WeatherModal, type HourlyWeather } from './WeatherModal';
@@ -74,6 +74,7 @@ function App() {
   const [isWeatherModalOpen, setIsWeatherModalOpen] = useState(false);
   const [isWaveModalOpen, setIsWaveModalOpen] = useState(false);
   const [pinnedData, setPinnedData] = useState<any>(null);
+  const [showFishingTime, setShowFishingTime] = useState(false);
   const [activeHoverData, setActiveHoverData] = useState<any>(null);
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     const today = new Date();
@@ -252,6 +253,45 @@ function App() {
 
   const lunarPhase = useMemo(() => getLunarPhase(selectedDate), [selectedDate]);
 
+  // Compute best fishing periods (hours with highest tide change rate)
+  const fishingPeriods = useMemo(() => {
+    if (!chartData.length || chartData.length < 2) return [];
+
+    const changes: { hour: number; prevHour: number; change: number }[] = [];
+    for (let i = 1; i < chartData.length; i++) {
+      changes.push({
+        hour: chartData[i].hour,
+        prevHour: chartData[i - 1].hour,
+        change: Math.abs(chartData[i].level - chartData[i - 1].level)
+      });
+    }
+
+    const avgChange = changes.reduce((sum, c) => sum + c.change, 0) / changes.length;
+    const threshold = avgChange * 0.8;
+
+    // Group consecutive high-change hours into periods
+    const periods: { start: number; end: number }[] = [];
+    let current: { start: number; end: number } | null = null;
+
+    for (const c of changes) {
+      if (c.change >= threshold) {
+        if (!current) {
+          current = { start: c.prevHour, end: c.hour };
+        } else {
+          current.end = c.hour;
+        }
+      } else {
+        if (current) {
+          periods.push(current);
+          current = null;
+        }
+      }
+    }
+    if (current) periods.push(current);
+
+    return periods;
+  }, [chartData]);
+
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedDate(e.target.value);
     setPinnedData(null);
@@ -394,6 +434,30 @@ function App() {
                   max="2026-12-31"
                 />
               </div>
+              {/* Best Fishing Time Toggle */}
+              <button
+                className={`fishing-btn${showFishingTime ? ' active' : ''}`}
+                onClick={() => setShowFishingTime(f => !f)}
+                style={{
+                  background: showFishingTime ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                  border: `1px solid ${showFishingTime ? 'rgba(239, 68, 68, 0.5)' : 'rgba(255, 255, 255, 0.1)'}`,
+                  padding: '0.5rem 0.7rem',
+                  borderRadius: '8px',
+                  color: showFishingTime ? '#ef4444' : '#94a3b8',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.4rem',
+                  transition: 'all 0.2s',
+                  fontSize: '0.8rem',
+                  whiteSpace: 'nowrap'
+                }}
+                title="Best Fishing Time"
+              >
+                <Fish size={18} />
+                <span className="desktop-only-title">Fishing</span>
+              </button>
             </div>
           </div>
 
@@ -437,6 +501,12 @@ function App() {
                   <stop offset="5%" stopColor="#34d399" stopOpacity={0.8} />
                   <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                 </linearGradient>
+                {showFishingTime && (
+                  <linearGradient id="colorFishing" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0.05} />
+                  </linearGradient>
+                )}
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
               <XAxis
@@ -479,6 +549,18 @@ function App() {
                 fill="url(#colorLevel)"
                 activeDot={{ r: 6, fill: "#fff", stroke: "#34d399", strokeWidth: 2 }}
               />
+              {showFishingTime && fishingPeriods.map((period, i) => (
+                <ReferenceArea
+                  key={`fish-${i}`}
+                  x1={period.start}
+                  x2={period.end}
+                  fill="#ef4444"
+                  fillOpacity={0.15}
+                  stroke="#ef4444"
+                  strokeOpacity={0.3}
+                  strokeDasharray="4 4"
+                />
+              ))}
               {pinnedData && (
                 <ReferenceDot
                   x={pinnedData.label}
