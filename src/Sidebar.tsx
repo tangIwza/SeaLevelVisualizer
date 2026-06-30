@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Waves, Menu, X, Navigation, Map } from 'lucide-react';
 import './Sidebar.css';
 
