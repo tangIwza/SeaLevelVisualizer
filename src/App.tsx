@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart, ReferenceDot } from 'recharts';
 import { MapPin, TrendingUp, TrendingDown, Moon, Map as MapIcon, CloudSun, CloudRain, CloudLightning, Waves } from 'lucide-react';
 import { LunarModal } from './LunarModal';
 import { MapModal } from './MapModal';
@@ -73,6 +73,8 @@ function App() {
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
   const [isWeatherModalOpen, setIsWeatherModalOpen] = useState(false);
   const [isWaveModalOpen, setIsWaveModalOpen] = useState(false);
+  const [pinnedData, setPinnedData] = useState<any>(null);
+  const [activeHoverData, setActiveHoverData] = useState<any>(null);
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     const today = new Date();
     return `2026-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -137,7 +139,7 @@ function App() {
     if (!loc || !loc.lat || !loc.lng) return;
 
     setWeatherLoading(true);
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lng}&hourly=temperature_2m,wind_speed_10m,precipitation_probability&daily=temperature_2m_max,wind_speed_10m_max,precipitation_probability_max&timezone=Asia%2FBangkok&start_date=${selectedDate}&end_date=${selectedDate}`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lng}&hourly=temperature_2m,wind_speed_10m,precipitation_probability,relative_humidity_2m&daily=temperature_2m_max,wind_speed_10m_max,precipitation_probability_max&timezone=Asia%2FBangkok&start_date=${selectedDate}&end_date=${selectedDate}`;
     const marineUrl = `https://marine-api.open-meteo.com/v1/marine?latitude=${loc.lat}&longitude=${loc.lng}&hourly=wave_height&timezone=Asia%2FBangkok&start_date=${selectedDate}&end_date=${selectedDate}`;
 
     Promise.all([
@@ -145,36 +147,56 @@ function App() {
       fetch(marineUrl).then(res => res.json()).catch(() => ({}))
     ])
       .then(([json, marineJson]) => {
-        if (json.daily && json.daily.temperature_2m_max && json.daily.wind_speed_10m_max) {
+        if (json.hourly && json.hourly.time) {
           
           let hourlyData: HourlyWeather[] = [];
-          if (json.hourly && json.hourly.time) {
-            hourlyData = json.hourly.time.map((timeStr: string, index: number) => {
-              let waveHeight = null;
-              if (marineJson.hourly && marineJson.hourly.wave_height) {
-                waveHeight = marineJson.hourly.wave_height[index];
-              }
-              return {
-                time: timeStr,
-                temp: json.hourly.temperature_2m[index],
-                windSpeed: json.hourly.wind_speed_10m[index],
-                rainProb: json.hourly.precipitation_probability[index],
-                waveHeight
-              };
-            });
+          hourlyData = json.hourly.time.map((timeStr: string, index: number) => {
+            let waveHeight = null;
+            if (marineJson.hourly && marineJson.hourly.wave_height) {
+              waveHeight = marineJson.hourly.wave_height[index];
+            }
+            return {
+              time: timeStr,
+              temp: json.hourly.temperature_2m[index],
+              windSpeed: json.hourly.wind_speed_10m[index],
+              rainProb: json.hourly.precipitation_probability[index],
+              humidity: json.hourly.relative_humidity_2m ? json.hourly.relative_humidity_2m[index] : null,
+              waveHeight
+            };
+          });
+
+          let avgTemp = null;
+          let avgWind = null;
+          let avgRain = null;
+
+          const temps = json.hourly.temperature_2m || [];
+          const winds = json.hourly.wind_speed_10m || [];
+          const rains = json.hourly.precipitation_probability || [];
+
+          if (temps.length > 0) {
+            avgTemp = temps.reduce((a: number, b: number) => a + b, 0) / temps.length;
+          }
+          if (winds.length > 0) {
+            avgWind = winds.reduce((a: number, b: number) => a + b, 0) / winds.length;
+          }
+          if (rains.length > 0) {
+            avgRain = rains.reduce((a: number, b: number) => a + b, 0) / rains.length;
           }
 
           setWeather({
-            temp: json.daily.temperature_2m_max[0],
-            windSpeed: json.daily.wind_speed_10m_max[0],
-            rainProb: json.daily.precipitation_probability_max ? json.daily.precipitation_probability_max[0] : null,
+            temp: avgTemp,
+            windSpeed: avgWind,
+            rainProb: avgRain !== null ? Math.round(avgRain) : null,
             hourly: hourlyData
           });
         } else {
           setWeather({ temp: null, windSpeed: null, rainProb: null, hourly: [] });
         }
       })
-      .catch(() => setWeather({ temp: null, windSpeed: null, rainProb: null, hourly: [] }))
+      .catch((err) => {
+        console.error("Error fetching weather:", err);
+        setWeather({ temp: null, windSpeed: null, rainProb: null, hourly: [] });
+      })
       .finally(() => setWeatherLoading(false));
   }, [selectedLocationId, selectedDate, data]);
 
@@ -196,6 +218,7 @@ function App() {
 
     return dayData.hours.map((val, index) => ({
       time: `${index.toString().padStart(2, '0')}:00`,
+      hour: index,
       level: val
     }));
   }, [data, selectedLocationId, selectedMonth, selectedDay]);
@@ -231,6 +254,7 @@ function App() {
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedDate(e.target.value);
+    setPinnedData(null);
   };
 
   const handleLocationChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -266,7 +290,7 @@ function App() {
 
         {/* Header and Controls */}
         <div className="dashboard-header">
-          
+
           {/* Top Row: Title & Weather */}
           <div className="header-top-row">
             <div className="title-group-left">
@@ -274,24 +298,24 @@ function App() {
             </div>
 
             {/* Weather Badge */}
-            <div className="weather-badge" 
+            <div className="weather-badge"
               onClick={() => setIsWeatherModalOpen(true)}
-              onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.02)'; e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)' }} 
+              onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.02)'; e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)' }}
               onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)' }}
               style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              padding: '0.6rem 1rem',
-              borderRadius: '8px',
-              color: '#f8fafc',
-              fontSize: '0.9rem',
-              minWidth: 'fit-content',
-              cursor: 'pointer',
-              transition: 'all 0.2s'
-            }}>
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                padding: '0.6rem 1rem',
+                borderRadius: '8px',
+                color: '#f8fafc',
+                fontSize: '0.9rem',
+                minWidth: 'fit-content',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}>
               {weatherLoading ? (
                 <span style={{ opacity: 0.7 }}>Loading...</span>
               ) : weather.temp !== null ? (
@@ -304,12 +328,12 @@ function App() {
                     <CloudSun size={16} style={{ color: '#3b82f6' }} />
                   )}
                   <span>
-                    {Math.round(weather.temp)}°C 
-                    <span style={{opacity:0.3, margin:'0 6px'}}>|</span> 
+                    {Math.round(weather.temp)}°C
+                    <span style={{ opacity: 0.3, margin: '0 6px' }}>|</span>
                     {Math.round(weather.windSpeed || 0)} km/h
                     {weather.rainProb !== null && (
                       <>
-                        <span style={{opacity:0.3, margin:'0 6px'}}>|</span> 
+                        <span style={{ opacity: 0.3, margin: '0 6px' }}>|</span>
                         {weather.rainProb}% rain
                       </>
                     )}
@@ -323,11 +347,11 @@ function App() {
 
           {/* Bottom Row: Location Subtitle & Controls */}
           <div className="header-bottom-row">
-            <p className="location-subtitle"><MapPin size={14} style={{display: 'inline', verticalAlign: 'middle', marginRight: '4px'}}/> {selectedLocationName} (2026)</p>
-            
+            <p className="location-subtitle"><MapPin size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} /> {selectedLocationName} (2026)</p>
+
             <div className="controls-group">
               {/* Map Button */}
-              <button 
+              <button
                 onClick={() => setIsMapModalOpen(true)}
                 style={{
                   background: 'rgba(255, 255, 255, 0.05)',
@@ -349,9 +373,9 @@ function App() {
               </button>
               {/* Location Picker */}
               <div className="select-wrapper location-wrapper">
-                <select 
-                  className="custom-select" 
-                  value={selectedLocationId} 
+                <select
+                  className="custom-select"
+                  value={selectedLocationId}
                   onChange={handleLocationChange}
                 >
                   {data.map(loc => (
@@ -361,10 +385,10 @@ function App() {
               </div>
               {/* Date Picker */}
               <div className="select-wrapper date-wrapper">
-                <input 
+                <input
                   type="date"
-                  className="custom-select" 
-                  value={selectedDate} 
+                  className="custom-select"
+                  value={selectedDate}
                   onChange={handleDateChange}
                   min="2026-01-01"
                   max="2026-12-31"
@@ -376,9 +400,38 @@ function App() {
         </div>
 
         {/* Chart Area */}
-        <div className="chart-container">
+        <div
+          className="chart-container"
+          style={{ position: 'relative' }}
+          onClick={() => {
+            if (activeHoverData) {
+              if (pinnedData && pinnedData.label === activeHoverData.label) {
+                setPinnedData(null);
+              } else {
+                setPinnedData(activeHoverData);
+              }
+            } else {
+              setPinnedData(null);
+            }
+          }}
+        >
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+            <AreaChart
+              data={chartData}
+              margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+              onMouseMove={(e: any) => {
+                if (e && e.activePayload) {
+                  setActiveHoverData({
+                    payload: e.activePayload,
+                    label: e.activeLabel,
+                    coordinate: e.activeCoordinate
+                  });
+                } else {
+                  setActiveHoverData(null);
+                }
+              }}
+              onMouseLeave={() => setActiveHoverData(null)}
+            >
               <defs>
                 <linearGradient id="colorLevel" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#34d399" stopOpacity={0.8} />
@@ -387,10 +440,15 @@ function App() {
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
               <XAxis
-                dataKey="time"
+                dataKey="hour"
+                type="number"
+                domain={[0, 23]}
+                ticks={[0, 3, 6, 9, 12, 15, 18, 21]}
+                tickFormatter={(val) => `${val.toString().padStart(2, '0')}:00`}
                 stroke="#94a3b8"
-                tick={{ fill: '#94a3b8', fontSize: 12 }}
+                tick={{ fill: '#94a3b8', fontSize: 11 }}
                 tickMargin={10}
+                minTickGap={5}
               />
               <YAxis
                 stroke="#94a3b8"
@@ -401,9 +459,10 @@ function App() {
               <Tooltip
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
+                    if (pinnedData && pinnedData.label === label) return null;
                     return (
                       <div className="custom-tooltip">
-                        <p className="label">{label}</p>
+                        <p className="label">{`${label?.toString().padStart(2, '0')}:00`}</p>
                         <p className="value">{`${payload[0].value} m`}</p>
                       </div>
                     );
@@ -420,8 +479,37 @@ function App() {
                 fill="url(#colorLevel)"
                 activeDot={{ r: 6, fill: "#fff", stroke: "#34d399", strokeWidth: 2 }}
               />
+              {pinnedData && (
+                <ReferenceDot
+                  x={pinnedData.label}
+                  y={pinnedData.payload[0].value}
+                  r={6}
+                  fill="#fff"
+                  stroke="#34d399"
+                  strokeWidth={2}
+                />
+              )}
             </AreaChart>
           </ResponsiveContainer>
+
+          {pinnedData && pinnedData.coordinate && (
+            <div
+              style={{
+                position: 'absolute',
+                left: pinnedData.coordinate.x,
+                top: pinnedData.coordinate.y,
+                pointerEvents: 'none',
+                transform: 'translate(-50%, -100%)',
+                marginTop: '-10px',
+                zIndex: 100
+              }}
+            >
+              <div className="custom-tooltip">
+                <p className="label">{`${pinnedData.label?.toString().padStart(2, '0')}:00`}</p>
+                <p className="value">{`${pinnedData.payload[0].value} m`}</p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Statistics Area */}

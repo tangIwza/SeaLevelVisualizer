@@ -26,7 +26,7 @@ export function WeatherModal({ isOpen, onClose, locationName, dateStr, hourlyDat
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content weather-modal" onClick={e => e.stopPropagation()}>
         <button className="close-btn" onClick={onClose}><X size={24} /></button>
-        
+
         <div className="modal-header">
           <h2>พยากรณ์อากาศรายชั่วโมง</h2>
           <p>{locationName} - {dateTitle}</p>
@@ -35,18 +35,18 @@ export function WeatherModal({ isOpen, onClose, locationName, dateStr, hourlyDat
         <div className="hourly-weather-list">
           <div className="hourly-weather-header">
             <div className="hw-time">เวลา</div>
-            <div className="hw-temp"><Thermometer size={14}/> อุณหภูมิ</div>
-            <div className="hw-rain"><Droplets size={14}/> โอกาสฝน</div>
-            <div className="hw-wind"><Wind size={14}/> ลม</div>
+            <div className="hw-temp"><Thermometer size={14} /> อุณหภูมิ</div>
+            <div className="hw-rain"><Droplets size={14} /> โอกาสฝน</div>
+            <div className="hw-wind"><Wind size={14} /> ลม</div>
           </div>
-          
+
           <div className="hourly-weather-body">
             {hourlyData.length === 0 ? (
               <div className="no-data">ไม่พบข้อมูลพยากรณ์อากาศ</div>
             ) : (
               hourlyData.map((hour, idx) => {
                 const timeLabel = new Date(hour.time).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
-                
+
                 let Icon = CloudSun;
                 let iconColor = '#3b82f6';
                 if (hour.rainProb >= 80) {
@@ -72,7 +72,7 @@ export function WeatherModal({ isOpen, onClose, locationName, dateStr, hourlyDat
             )}
           </div>
         </div>
-        
+
       </div>
     </div>
   );

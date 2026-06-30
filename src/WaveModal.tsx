@@ -3,7 +3,7 @@ import './WaveModal.css';
 
 export interface HourlyWave {
   time: string;
-  waveHeight: number | null;
+  waveHeight?: number | null;
 }
 
 interface WaveModalProps {
