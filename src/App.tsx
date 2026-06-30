@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
-import { MapPin, TrendingUp, TrendingDown, Moon, Map as MapIcon, CloudSun, CloudRain, CloudLightning } from 'lucide-react';
+import { MapPin, TrendingUp, TrendingDown, Moon, Map as MapIcon, CloudSun, CloudRain, CloudLightning, Waves } from 'lucide-react';
 import { LunarModal } from './LunarModal';
 import { MapModal } from './MapModal';
+import { WeatherModal, type HourlyWeather } from './WeatherModal';
+import { WaveModal } from './WaveModal';
 
 interface DayData {
   day: number;
@@ -69,6 +71,8 @@ function App() {
   const [selectedLocationId, setSelectedLocationId] = useState<string>("MT");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+  const [isWeatherModalOpen, setIsWeatherModalOpen] = useState(false);
+  const [isWaveModalOpen, setIsWaveModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     const today = new Date();
     return `2026-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -80,8 +84,9 @@ function App() {
     temp: number | null;
     windSpeed: number | null;
     rainProb: number | null;
+    hourly: HourlyWeather[];
   }
-  const [weather, setWeather] = useState<WeatherData>({ temp: null, windSpeed: null, rainProb: null });
+  const [weather, setWeather] = useState<WeatherData>({ temp: null, windSpeed: null, rainProb: null, hourly: [] });
   const [weatherLoading, setWeatherLoading] = useState(false);
 
   useEffect(() => {
@@ -132,22 +137,44 @@ function App() {
     if (!loc || !loc.lat || !loc.lng) return;
 
     setWeatherLoading(true);
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lng}&daily=temperature_2m_max,wind_speed_10m_max,precipitation_probability_max&timezone=Asia%2FBangkok&start_date=${selectedDate}&end_date=${selectedDate}`;
-    
-    fetch(url)
-      .then(res => res.json())
-      .then(json => {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lng}&hourly=temperature_2m,wind_speed_10m,precipitation_probability&daily=temperature_2m_max,wind_speed_10m_max,precipitation_probability_max&timezone=Asia%2FBangkok&start_date=${selectedDate}&end_date=${selectedDate}`;
+    const marineUrl = `https://marine-api.open-meteo.com/v1/marine?latitude=${loc.lat}&longitude=${loc.lng}&hourly=wave_height&timezone=Asia%2FBangkok&start_date=${selectedDate}&end_date=${selectedDate}`;
+
+    Promise.all([
+      fetch(url).then(res => res.json()),
+      fetch(marineUrl).then(res => res.json()).catch(() => ({}))
+    ])
+      .then(([json, marineJson]) => {
         if (json.daily && json.daily.temperature_2m_max && json.daily.wind_speed_10m_max) {
+          
+          let hourlyData: HourlyWeather[] = [];
+          if (json.hourly && json.hourly.time) {
+            hourlyData = json.hourly.time.map((timeStr: string, index: number) => {
+              let waveHeight = null;
+              if (marineJson.hourly && marineJson.hourly.wave_height) {
+                waveHeight = marineJson.hourly.wave_height[index];
+              }
+              return {
+                time: timeStr,
+                temp: json.hourly.temperature_2m[index],
+                windSpeed: json.hourly.wind_speed_10m[index],
+                rainProb: json.hourly.precipitation_probability[index],
+                waveHeight
+              };
+            });
+          }
+
           setWeather({
             temp: json.daily.temperature_2m_max[0],
             windSpeed: json.daily.wind_speed_10m_max[0],
-            rainProb: json.daily.precipitation_probability_max ? json.daily.precipitation_probability_max[0] : null
+            rainProb: json.daily.precipitation_probability_max ? json.daily.precipitation_probability_max[0] : null,
+            hourly: hourlyData
           });
         } else {
-          setWeather({ temp: null, windSpeed: null, rainProb: null });
+          setWeather({ temp: null, windSpeed: null, rainProb: null, hourly: [] });
         }
       })
-      .catch(() => setWeather({ temp: null, windSpeed: null, rainProb: null }))
+      .catch(() => setWeather({ temp: null, windSpeed: null, rainProb: null, hourly: [] }))
       .finally(() => setWeatherLoading(false));
   }, [selectedLocationId, selectedDate, data]);
 
@@ -183,6 +210,22 @@ function App() {
     }
     return { min, max };
   }, [chartData]);
+
+  const maxWave = useMemo(() => {
+    if (!weather.hourly || weather.hourly.length === 0) return null;
+    let max = null;
+    let maxTime = "";
+    for (const hour of weather.hourly) {
+      if (hour.waveHeight !== null && hour.waveHeight !== undefined) {
+        if (max === null || hour.waveHeight > max) {
+          max = hour.waveHeight;
+          maxTime = hour.time;
+        }
+      }
+    }
+    if (max === null) return null;
+    return { level: max, time: new Date(maxTime).getHours().toString().padStart(2, '0') + ':00' };
+  }, [weather.hourly]);
 
   const lunarPhase = useMemo(() => getLunarPhase(selectedDate), [selectedDate]);
 
@@ -231,7 +274,11 @@ function App() {
             </div>
 
             {/* Weather Badge */}
-            <div className="weather-badge" style={{
+            <div className="weather-badge" 
+              onClick={() => setIsWeatherModalOpen(true)}
+              onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.02)'; e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)' }} 
+              onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)' }}
+              style={{
               display: 'flex',
               alignItems: 'center',
               gap: '0.5rem',
@@ -241,7 +288,9 @@ function App() {
               borderRadius: '8px',
               color: '#f8fafc',
               fontSize: '0.9rem',
-              minWidth: 'fit-content'
+              minWidth: 'fit-content',
+              cursor: 'pointer',
+              transition: 'all 0.2s'
             }}>
               {weatherLoading ? (
                 <span style={{ opacity: 0.7 }}>Loading...</span>
@@ -407,6 +456,18 @@ function App() {
                 <span className="stat-value">{lunarPhase.emoji} {lunarPhase.phase}</span>
               </div>
             </div>
+
+            {maxWave && (
+              <div className="stat-card" style={{ cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => setIsWaveModalOpen(true)} onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}>
+                <div className="stat-icon-wrapper" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }}>
+                  <Waves size={20} />
+                </div>
+                <div className="stat-info">
+                  <span className="stat-label">Max Wave Height</span>
+                  <span className="stat-value">{maxWave.level.toFixed(1)} m <span className="stat-time">at {maxWave.time}</span></span>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -426,9 +487,23 @@ function App() {
         onClose={() => setIsMapModalOpen(false)}
         locations={data}
         selectedLocationId={selectedLocationId}
-        onSelectLocation={(id) => {
-          setSelectedLocationId(id);
-        }}
+        onSelectLocation={setSelectedLocationId}
+      />
+
+      <WeatherModal
+        isOpen={isWeatherModalOpen}
+        onClose={() => setIsWeatherModalOpen(false)}
+        locationName={selectedLocationName}
+        dateStr={selectedDate}
+        hourlyData={weather.hourly}
+      />
+
+      <WaveModal
+        isOpen={isWaveModalOpen}
+        onClose={() => setIsWaveModalOpen(false)}
+        locationName={selectedLocationName}
+        dateStr={selectedDate}
+        hourlyData={weather.hourly}
       />
     </div>
   );

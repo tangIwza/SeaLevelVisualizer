@@ -1,0 +1,74 @@
+.weather-modal {
+  max-width: 500px;
+}
+
+.hourly-weather-list {
+  margin-top: 1.5rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+}
+
+.hourly-weather-header {
+  display: flex;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.hourly-weather-header > div,
+.hourly-row > div {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.hw-time {
+  flex: 0.8 !important;
+}
+
+.hw-temp {
+  flex: 1.2 !important;
+  gap: 0.25rem;
+}
+
+.hw-rain {
+  flex: 1.5 !important;
+  gap: 0.25rem;
+}
+
+.hw-wind {
+  flex: 1.2 !important;
+  gap: 0.25rem;
+}
+
+.hourly-weather-body {
+  max-height: 350px;
+  overflow-y: auto;
+}
+
+.hourly-row {
+  display: flex;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+  font-size: 0.95rem;
+  transition: background 0.2s;
+}
+
+.hourly-row:last-child {
+  border-bottom: none;
+}
+
+.hourly-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.no-data {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-secondary);
+}
