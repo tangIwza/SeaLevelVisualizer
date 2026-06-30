@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
-import { MapPin, TrendingUp, TrendingDown } from 'lucide-react';
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
+import { MapPin, TrendingUp, TrendingDown, Moon, Map as MapIcon, CloudSun, CloudRain, CloudLightning } from 'lucide-react';
+import { LunarModal } from './LunarModal';
+import { MapModal } from './MapModal';
 
 interface DayData {
   day: number;
@@ -12,8 +14,61 @@ interface MonthData {
   days: DayData[];
 }
 
+interface LocationData {
+  id: string;
+  name: string;
+  lat?: number;
+  lng?: number;
+  data: MonthData[];
+}
+
+function getLunarPhase(dateStr: string): { phase: string, emoji: string } {
+  const date = new Date(dateStr);
+  const newMoon = new Date(Date.UTC(2024, 0, 11, 11, 57, 0));
+  const synodicMonth = 29.53058867 * 24 * 60 * 60 * 1000;
+  const diff = date.getTime() - newMoon.getTime();
+  const phase = (diff % synodicMonth + synodicMonth) % synodicMonth / synodicMonth;
+  const lunarDays = phase * 29.53058867;
+
+  let label = "";
+  if (lunarDays <= 14.765) {
+    const day = Math.floor(lunarDays) + 1;
+    label = `ขึ้น ${Math.min(day, 15)} ค่ำ`;
+  } else {
+    const day = Math.floor(lunarDays - 14.765) + 1;
+    label = `แรม ${Math.min(day, 15)} ค่ำ`;
+  }
+
+  let emoji = "🌑";
+  if (phase < 0.03 || phase > 0.97) emoji = "🌑";
+  else if (phase < 0.22) emoji = "🌒";
+  else if (phase < 0.28) emoji = "🌓";
+  else if (phase < 0.47) emoji = "🌔";
+  else if (phase < 0.53) emoji = "🌕";
+  else if (phase < 0.72) emoji = "🌖";
+  else if (phase < 0.78) emoji = "🌗";
+  else emoji = "🌘";
+
+  return { phase: label, emoji };
+}
+
+function getDistanceFromLatLonInKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371; // Radius of the earth in km
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c; // Distance in km
+}
+
 function App() {
-  const [data, setData] = useState<MonthData[]>([]);
+  const [data, setData] = useState<LocationData[]>([]);
+  const [selectedLocationId, setSelectedLocationId] = useState<string>("MT");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isMapModalOpen, setIsMapModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     const today = new Date();
     return `2026-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -21,14 +76,48 @@ function App() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  interface WeatherData {
+    temp: number | null;
+    windSpeed: number | null;
+    rainProb: number | null;
+  }
+  const [weather, setWeather] = useState<WeatherData>({ temp: null, windSpeed: null, rainProb: null });
+  const [weatherLoading, setWeatherLoading] = useState(false);
+
   useEffect(() => {
     fetch('/tide_data.json')
       .then(response => {
         if (!response.ok) throw new Error('Failed to load data');
         return response.json();
       })
-      .then((jsonData: MonthData[]) => {
+      .then((jsonData: LocationData[]) => {
         setData(jsonData);
+        const defaultId = jsonData.find(loc => loc.id === "MT")?.id || (jsonData.length > 0 ? jsonData[0].id : "MT");
+        setSelectedLocationId(defaultId);
+
+        // Try to get GPS and select closest station
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition((position) => {
+            const userLat = position.coords.latitude;
+            const userLng = position.coords.longitude;
+            let closestDist = Infinity;
+            let closestId = defaultId;
+
+            for (const loc of jsonData) {
+              if (loc.lat && loc.lng) {
+                const dist = getDistanceFromLatLonInKm(userLat, userLng, loc.lat, loc.lng);
+                if (dist < closestDist) {
+                  closestDist = dist;
+                  closestId = loc.id;
+                }
+              }
+            }
+            setSelectedLocationId(closestId);
+          }, (err) => {
+            console.warn("Geolocation error:", err.message);
+          });
+        }
+
         setLoading(false);
       })
       .catch(err => {
@@ -38,24 +127,51 @@ function App() {
       });
   }, []);
 
+  useEffect(() => {
+    const loc = data.find(l => l.id === selectedLocationId);
+    if (!loc || !loc.lat || !loc.lng) return;
+
+    setWeatherLoading(true);
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lng}&daily=temperature_2m_max,wind_speed_10m_max,precipitation_probability_max&timezone=Asia%2FBangkok&start_date=${selectedDate}&end_date=${selectedDate}`;
+    
+    fetch(url)
+      .then(res => res.json())
+      .then(json => {
+        if (json.daily && json.daily.temperature_2m_max && json.daily.wind_speed_10m_max) {
+          setWeather({
+            temp: json.daily.temperature_2m_max[0],
+            windSpeed: json.daily.wind_speed_10m_max[0],
+            rainProb: json.daily.precipitation_probability_max ? json.daily.precipitation_probability_max[0] : null
+          });
+        } else {
+          setWeather({ temp: null, windSpeed: null, rainProb: null });
+        }
+      })
+      .catch(() => setWeather({ temp: null, windSpeed: null, rainProb: null }))
+      .finally(() => setWeatherLoading(false));
+  }, [selectedLocationId, selectedDate, data]);
+
   const selectedMonth = parseInt(selectedDate.split('-')[1], 10);
   const selectedDay = parseInt(selectedDate.split('-')[2], 10);
 
   // Compute the data for the chart based on current selection
   const chartData = useMemo(() => {
     if (!data.length) return [];
-    
-    const monthData = data.find(m => m.month === selectedMonth);
+
+    const locationData = data.find(loc => loc.id === selectedLocationId);
+    if (!locationData) return [];
+
+    const monthData = locationData.data.find(m => m.month === selectedMonth);
     if (!monthData) return [];
-    
+
     const dayData = monthData.days.find(d => d.day === selectedDay);
     if (!dayData) return [];
-    
+
     return dayData.hours.map((val, index) => ({
       time: `${index.toString().padStart(2, '0')}:00`,
       level: val
     }));
-  }, [data, selectedMonth, selectedDay]);
+  }, [data, selectedLocationId, selectedMonth, selectedDay]);
 
   const stats = useMemo(() => {
     if (!chartData.length) return null;
@@ -68,9 +184,18 @@ function App() {
     return { min, max };
   }, [chartData]);
 
+  const lunarPhase = useMemo(() => getLunarPhase(selectedDate), [selectedDate]);
+
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedDate(e.target.value);
   };
+
+  const handleLocationChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedLocationId(e.target.value);
+  };
+
+  const selectedLocation = data.find(loc => loc.id === selectedLocationId);
+  const selectedLocationName = selectedLocation?.name || 'Unknown Location';
 
   if (loading) {
     return (
@@ -95,27 +220,110 @@ function App() {
   return (
     <div className="app-container">
       <div className="dashboard-card">
-        
+
         {/* Header and Controls */}
         <div className="dashboard-header">
-          <div className="title-group">
-            <h1>Sea Level Visualizer</h1>
-            <p><MapPin size={14} style={{display: 'inline', verticalAlign: 'middle', marginRight: '4px'}}/> Map Ta Phut, Rayong (2026)</p>
-          </div>
           
-          <div className="controls-group">
-            {/* Date Picker */}
-            <div className="select-wrapper">
-              <input 
-                type="date"
-                className="custom-select" 
-                value={selectedDate} 
-                onChange={handleDateChange}
-                min="2026-01-01"
-                max="2026-12-31"
-              />
+          {/* Top Row: Title & Weather */}
+          <div className="header-top-row">
+            <div className="title-group-left">
+              <h1 style={{ marginBottom: 0 }}>Sea Level<span className="desktop-only-title"> Visualizer</span></h1>
+            </div>
+
+            {/* Weather Badge */}
+            <div className="weather-badge" style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              padding: '0.6rem 1rem',
+              borderRadius: '8px',
+              color: '#f8fafc',
+              fontSize: '0.9rem',
+              minWidth: 'fit-content'
+            }}>
+              {weatherLoading ? (
+                <span style={{ opacity: 0.7 }}>Loading...</span>
+              ) : weather.temp !== null ? (
+                <>
+                  {weather.rainProb !== null && weather.rainProb >= 80 ? (
+                    <CloudLightning size={16} style={{ color: '#fbbf24' }} />
+                  ) : weather.rainProb !== null && weather.rainProb >= 50 ? (
+                    <CloudRain size={16} style={{ color: '#60a5fa' }} />
+                  ) : (
+                    <CloudSun size={16} style={{ color: '#3b82f6' }} />
+                  )}
+                  <span>
+                    {Math.round(weather.temp)}°C 
+                    <span style={{opacity:0.3, margin:'0 6px'}}>|</span> 
+                    {Math.round(weather.windSpeed || 0)} km/h
+                    {weather.rainProb !== null && (
+                      <>
+                        <span style={{opacity:0.3, margin:'0 6px'}}>|</span> 
+                        {weather.rainProb}% rain
+                      </>
+                    )}
+                  </span>
+                </>
+              ) : (
+                <span style={{ opacity: 0.7 }}>No weather data</span>
+              )}
             </div>
           </div>
+
+          {/* Bottom Row: Location Subtitle & Controls */}
+          <div className="header-bottom-row">
+            <p className="location-subtitle"><MapPin size={14} style={{display: 'inline', verticalAlign: 'middle', marginRight: '4px'}}/> {selectedLocationName} (2026)</p>
+            
+            <div className="controls-group">
+              {/* Map Button */}
+              <button 
+                onClick={() => setIsMapModalOpen(true)}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  padding: '0.6rem 0.8rem',
+                  borderRadius: '8px',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'; }}
+                title="Select on Map"
+              >
+                <MapIcon size={20} />
+              </button>
+              {/* Location Picker */}
+              <div className="select-wrapper location-wrapper">
+                <select 
+                  className="custom-select" 
+                  value={selectedLocationId} 
+                  onChange={handleLocationChange}
+                >
+                  {data.map(loc => (
+                    <option key={loc.id} value={loc.id}>{loc.name}</option>
+                  ))}
+                </select>
+              </div>
+              {/* Date Picker */}
+              <div className="select-wrapper date-wrapper">
+                <input 
+                  type="date"
+                  className="custom-select" 
+                  value={selectedDate} 
+                  onChange={handleDateChange}
+                  min="2026-01-01"
+                  max="2026-12-31"
+                />
+              </div>
+            </div>
+          </div>
+
         </div>
 
         {/* Chart Area */}
@@ -124,24 +332,24 @@ function App() {
             <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorLevel" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#34d399" stopOpacity={0.8}/>
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="#34d399" stopOpacity={0.8} />
+                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
-              <XAxis 
-                dataKey="time" 
-                stroke="#94a3b8" 
-                tick={{fill: '#94a3b8', fontSize: 12}}
+              <XAxis
+                dataKey="time"
+                stroke="#94a3b8"
+                tick={{ fill: '#94a3b8', fontSize: 12 }}
                 tickMargin={10}
               />
-              <YAxis 
-                stroke="#94a3b8" 
-                tick={{fill: '#94a3b8', fontSize: 12}}
+              <YAxis
+                stroke="#94a3b8"
+                tick={{ fill: '#94a3b8', fontSize: 12 }}
                 domain={[0, 4]}
                 tickFormatter={(value) => `${value}m`}
               />
-              <Tooltip 
+              <Tooltip
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
                     return (
@@ -154,19 +362,19 @@ function App() {
                   return null;
                 }}
               />
-              <Area 
-                type="monotone" 
-                dataKey="level" 
-                stroke="#34d399" 
+              <Area
+                type="monotone"
+                dataKey="level"
+                stroke="#34d399"
                 strokeWidth={3}
-                fillOpacity={1} 
-                fill="url(#colorLevel)" 
+                fillOpacity={1}
+                fill="url(#colorLevel)"
                 activeDot={{ r: 6, fill: "#fff", stroke: "#34d399", strokeWidth: 2 }}
               />
             </AreaChart>
           </ResponsiveContainer>
         </div>
-        
+
         {/* Statistics Area */}
         {stats && (
           <div className="stats-container">
@@ -179,7 +387,7 @@ function App() {
                 <span className="stat-value">{stats.max.level} m <span className="stat-time">at {stats.max.time}</span></span>
               </div>
             </div>
-            
+
             <div className="stat-card">
               <div className="stat-icon-wrapper low">
                 <TrendingDown size={20} />
@@ -189,10 +397,39 @@ function App() {
                 <span className="stat-value">{stats.min.level} m <span className="stat-time">at {stats.min.time}</span></span>
               </div>
             </div>
+
+            <div className="stat-card" style={{ cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => setIsModalOpen(true)} onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}>
+              <div className="stat-icon-wrapper" style={{ background: 'rgba(251, 191, 36, 0.15)', color: '#fbbf24' }}>
+                <Moon size={20} />
+              </div>
+              <div className="stat-info">
+                <span className="stat-label">ข้างขึ้นข้างแรม</span>
+                <span className="stat-value">{lunarPhase.emoji} {lunarPhase.phase}</span>
+              </div>
+            </div>
           </div>
         )}
-        
+
       </div>
+
+      <LunarModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        dateStr={selectedDate}
+        lat={selectedLocation?.lat}
+        lng={selectedLocation?.lng}
+        locationName={selectedLocationName}
+      />
+
+      <MapModal
+        isOpen={isMapModalOpen}
+        onClose={() => setIsMapModalOpen(false)}
+        locations={data}
+        selectedLocationId={selectedLocationId}
+        onSelectLocation={(id) => {
+          setSelectedLocationId(id);
+        }}
+      />
     </div>
   );
 }
