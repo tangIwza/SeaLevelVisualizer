@@ -223,7 +223,7 @@ body {
     align-items: flex-start;
     gap: 0.5rem;
     margin-bottom: 0.75rem;
-    padding-top: 2rem;
+    padding-top: 0.25rem;
   }
 
   .header-top-row {
@@ -233,8 +233,9 @@ body {
 
   .title-group h1,
   .title-group-left h1 {
-    font-size: 1.4rem;
+    font-size: 1.25rem;
     margin-bottom: 0;
+    margin-left: 2.75rem;
   }
 
   .desktop-only-title {
