@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart, ReferenceDot, ReferenceArea } from 'recharts';
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart, ReferenceDot, ReferenceArea, ReferenceLine } from 'recharts';
 import { MapPin, TrendingUp, TrendingDown, Moon, Map as MapIcon, CloudSun, CloudRain, CloudLightning, Waves, Fish } from 'lucide-react';
 import { LunarModal } from './LunarModal';
 import { MapModal } from './MapModal';
@@ -66,6 +66,44 @@ function getDistanceFromLatLonInKm(lat1: number, lon1: number, lat2: number, lon
   return R * c; // Distance in km
 }
 
+const CurrentTimeLabel = (props: any) => {
+  const { viewBox, value, isRising } = props;
+  const { x, y } = viewBox;
+  
+  const width = 68;
+  const height = 22;
+  const arrowSize = 6;
+  const r = 10;
+  const tipY = y;
+  const by = tipY - arrowSize - height;
+  const bx = x - width / 2;
+  
+  const d = `
+    M ${bx + r} ${by}
+    L ${bx + width - r} ${by}
+    Q ${bx + width} ${by} ${bx + width} ${by + r}
+    L ${bx + width} ${by + height - r}
+    Q ${bx + width} ${by + height} ${bx + width - r} ${by + height}
+    L ${x + arrowSize} ${by + height}
+    L ${x} ${tipY}
+    L ${x - arrowSize} ${by + height}
+    L ${bx + r} ${by + height}
+    Q ${bx} ${by + height} ${bx} ${by + height - r}
+    L ${bx} ${by + r}
+    Q ${bx} ${by} ${bx + r} ${by}
+    Z
+  `;
+
+  return (
+    <g>
+      <path d={d} fill="white" stroke="#ef4444" strokeWidth={1} />
+      <text x={x} y={by + height / 2 + 4} fill="#ef4444" fontSize={11} fontWeight="bold" textAnchor="middle">
+        {value.toFixed(2)} m {isRising ? '↑' : '↓'}
+      </text>
+    </g>
+  );
+};
+
 function App() {
   const [data, setData] = useState<LocationData[]>([]);
   const [selectedLocationId, setSelectedLocationId] = useState<string>("MT");
@@ -91,6 +129,12 @@ function App() {
   }
   const [weather, setWeather] = useState<WeatherData>({ temp: null, windSpeed: null, rainProb: null, hourly: [] });
   const [weatherLoading, setWeatherLoading] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     fetch('/tide_data.json')
@@ -252,6 +296,31 @@ function App() {
   }, [weather.hourly]);
 
   const lunarPhase = useMemo(() => getLunarPhase(selectedDate), [selectedDate]);
+
+  const isToday = useMemo(() => {
+    const todayStr = `${currentTime.getFullYear()}-${String(currentTime.getMonth() + 1).padStart(2, '0')}-${String(currentTime.getDate()).padStart(2, '0')}`;
+    return selectedDate === todayStr;
+  }, [selectedDate, currentTime]);
+
+  const currentLevelData = useMemo(() => {
+    if (!isToday || chartData.length === 0) return null;
+    const currentHour = currentTime.getHours();
+    const currentMinute = currentTime.getMinutes();
+    const xPos = currentHour + currentMinute / 60;
+    
+    const currentData = chartData.find(d => d.hour === currentHour);
+    const nextData = chartData.find(d => d.hour === currentHour + 1);
+    
+    if (currentData && nextData) {
+      const diff = nextData.level - currentData.level;
+      const level = currentData.level + (diff * (currentMinute / 60));
+      const isRising = diff > 0;
+      return { xPos, level, isRising };
+    } else if (currentData) {
+      return { xPos, level: currentData.level, isRising: true };
+    }
+    return null;
+  }, [isToday, chartData, currentTime]);
 
   // Compute best fishing periods (hours with highest tide change rate)
   const fishingPeriods = useMemo(() => {
@@ -484,7 +553,7 @@ function App() {
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
               data={chartData}
-              margin={{ top: 5, right: 10, left: -15, bottom: 0 }}
+              margin={{ top: 30, right: 10, left: -15, bottom: 0 }}
               onMouseMove={(e: any) => {
                 if (e && e.activePayload) {
                   setActiveHoverData({
@@ -571,6 +640,14 @@ function App() {
                   fill="#fff"
                   stroke="#34d399"
                   strokeWidth={2}
+                />
+              )}
+              {currentLevelData && (
+                <ReferenceLine 
+                  x={currentLevelData.xPos} 
+                  stroke="#ef4444" 
+                  strokeWidth={2}
+                  label={(props) => <CurrentTimeLabel {...props} value={currentLevelData.level} isRising={currentLevelData.isRising} />}
                 />
               )}
             </AreaChart>
