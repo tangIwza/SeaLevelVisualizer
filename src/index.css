@@ -264,6 +264,7 @@ body {
   .controls-group > .date-wrapper {
     grid-column: 2 / 3;
     grid-row: 2 / 3;
+    width: 100%;
   }
 
   .controls-group > .fishing-btn {

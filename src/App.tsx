@@ -396,14 +396,16 @@ function App() {
                 style={{
                   background: 'rgba(255, 255, 255, 0.05)',
                   border: '1px solid rgba(255, 255, 255, 0.1)',
-                  padding: '0.6rem 0.8rem',
+                  padding: '0.5rem',
                   borderRadius: '8px',
                   color: '#94a3b8',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  transition: 'all 0.2s'
+                  transition: 'all 0.2s',
+                  width: '42px',
+                  height: '42px'
                 }}
                 onMouseEnter={(e) => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'; }}
@@ -441,7 +443,7 @@ function App() {
                 style={{
                   background: showFishingTime ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 255, 255, 0.05)',
                   border: `1px solid ${showFishingTime ? 'rgba(239, 68, 68, 0.5)' : 'rgba(255, 255, 255, 0.1)'}`,
-                  padding: '0.5rem 0.7rem',
+                  padding: '0.5rem 0.75rem',
                   borderRadius: '8px',
                   color: showFishingTime ? '#ef4444' : '#94a3b8',
                   cursor: 'pointer',
