@@ -473,7 +473,7 @@ function App() {
           {/* Top Row: Title & Weather */}
           <div className="header-top-row">
             <div className="title-group-left">
-              <h1 style={{ marginBottom: 0 }}>Sea Level<span className="desktop-only-title"> Visualizer</span></h1>
+              <h1 className="dashboard-title" style={{ marginBottom: 0 }}>SeaLevel<span className="desktop-only-title logo-highlight"> App</span></h1>
             </div>
 
             {/* Weather Badge */}
