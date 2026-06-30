@@ -71,7 +71,7 @@ function getDistanceFromLatLonInKm(lat1: number, lon1: number, lat2: number, lon
 const CurrentTimeLabel = (props: any) => {
   const { viewBox, value, isRising } = props;
   const { x, y } = viewBox;
-  
+
   const width = 68;
   const height = 22;
   const arrowSize = 6;
@@ -79,7 +79,7 @@ const CurrentTimeLabel = (props: any) => {
   const tipY = y;
   const by = tipY - arrowSize - height;
   const bx = x - width / 2;
-  
+
   const d = `
     M ${bx + r} ${by}
     L ${bx + width - r} ${by}
@@ -110,7 +110,7 @@ function App() {
   const [data, setData] = useState<LocationData[]>([]);
   const [selectedLocationId, setSelectedLocationId] = useState<string>("MT");
   const [activeTab, setActiveTab] = useState<'standard' | 'local'>('standard');
-  const [localCoordinate, setLocalCoordinate] = useState<{lat: number, lng: number} | null>(null);
+  const [localCoordinate, setLocalCoordinate] = useState<{ lat: number, lng: number } | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
   const [isLocalMapModalOpen, setIsLocalMapModalOpen] = useState(false);
@@ -211,7 +211,7 @@ function App() {
     ])
       .then(([json, marineJson]) => {
         if (json.hourly && json.hourly.time) {
-          
+
           let hourlyData: HourlyWeather[] = [];
           hourlyData = json.hourly.time.map((timeStr: string, index: number) => {
             let waveHeight = null;
@@ -288,7 +288,7 @@ function App() {
     } else {
       // Local mode
       if (!localCoordinate) return [];
-      
+
       const validLocations = data.filter(loc => loc.lat !== undefined && loc.lng !== undefined);
       if (validLocations.length < 2) return [];
 
@@ -324,7 +324,7 @@ function App() {
       return p1Day.hours.map((val1, index) => {
         const val2 = p2Day.hours[index];
         const interpolatedLevel = (val1 * w1) + (val2 * w2);
-        
+
         return {
           time: `${index.toString().padStart(2, '0')}:00`,
           hour: index,
@@ -373,10 +373,10 @@ function App() {
     const currentHour = currentTime.getHours();
     const currentMinute = currentTime.getMinutes();
     const xPos = currentHour + currentMinute / 60;
-    
+
     const currentData = chartData.find(d => d.hour === currentHour);
     const nextData = chartData.find(d => d.hour === currentHour + 1);
-    
+
     if (currentData && nextData) {
       const diff = nextData.level - currentData.level;
       const level = currentData.level + (diff * (currentMinute / 60));
@@ -437,7 +437,7 @@ function App() {
   };
 
   const selectedLocation = data.find(loc => loc.id === selectedLocationId);
-  const selectedLocationName = activeTab === 'standard' 
+  const selectedLocationName = activeTab === 'standard'
     ? (selectedLocation?.name || 'Unknown Location')
     : (localCoordinate ? `Custom (${localCoordinate.lat.toFixed(4)}, ${localCoordinate.lng.toFixed(4)})` : 'Select a location');
 
@@ -467,380 +467,380 @@ function App() {
       <div className="app-container">
         <div className="dashboard-card">
 
-        {/* Header and Controls */}
-        <div className="dashboard-header">
+          {/* Header and Controls */}
+          <div className="dashboard-header">
 
-          {/* Top Row: Title & Weather */}
-          <div className="header-top-row">
-            <div className="title-group-left">
-              <h1 className="dashboard-title" style={{ marginBottom: 0 }}>SeaLevel<span className="desktop-only-title logo-highlight"> App</span></h1>
-            </div>
+            {/* Top Row: Title & Weather */}
+            <div className="header-top-row">
+              <div className="title-group-left">
+                <h1 style={{ marginBottom: 0 }}>Sea Level<span className="desktop-only-title"> Visualizer</span></h1>
+              </div>
 
-            {/* Weather Badge */}
-            <div className="weather-badge"
-              onClick={() => setIsWeatherModalOpen(true)}
-              onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.02)'; e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)' }}
-              onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)' }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                padding: '0.4rem 0.75rem',
-                borderRadius: '8px',
-                color: '#f8fafc',
-                fontSize: '0.8rem',
-                minWidth: 'fit-content',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}>
-              {weatherLoading ? (
-                <span style={{ opacity: 0.7 }}>Loading...</span>
-              ) : weather.temp !== null ? (
-                <>
-                  {weather.rainProb !== null && weather.rainProb >= 80 ? (
-                    <CloudLightning size={16} style={{ color: '#fbbf24' }} />
-                  ) : weather.rainProb !== null && weather.rainProb >= 50 ? (
-                    <CloudRain size={16} style={{ color: '#60a5fa' }} />
-                  ) : (
-                    <CloudSun size={16} style={{ color: '#3b82f6' }} />
-                  )}
-                  <span>
-                    {Math.round(weather.temp)}°C
-                    <span style={{ opacity: 0.3, margin: '0 6px' }}>|</span>
-                    {Math.round(weather.windSpeed || 0)} km/h
-                    {weather.rainProb !== null && (
-                      <>
-                        <span style={{ opacity: 0.3, margin: '0 6px' }}>|</span>
-                        {weather.rainProb}% rain
-                      </>
-                    )}
-                  </span>
-                </>
-              ) : (
-                <span style={{ opacity: 0.7 }}>No weather data</span>
-              )}
-            </div>
-          </div>
-
-          {/* Bottom Row: Location Subtitle & Controls */}
-          <div className="header-bottom-row">
-            <p className="location-subtitle"><MapPin size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} /> {selectedLocationName} (2026)</p>
-
-            <div className="controls-group">
-              {/* Map Button */}
-              <button
-                onClick={() => activeTab === 'standard' ? setIsMapModalOpen(true) : setIsLocalMapModalOpen(true)}
+              {/* Weather Badge */}
+              <div className="weather-badge"
+                onClick={() => setIsWeatherModalOpen(true)}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.02)'; e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)' }}
                 style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
                   background: 'rgba(255, 255, 255, 0.05)',
                   border: '1px solid rgba(255, 255, 255, 0.1)',
-                  padding: '0.5rem',
+                  padding: '0.4rem 0.75rem',
                   borderRadius: '8px',
-                  color: '#94a3b8',
+                  color: '#f8fafc',
+                  fontSize: '0.8rem',
+                  minWidth: 'fit-content',
                   cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'all 0.2s',
-                  width: '42px',
-                  height: '42px'
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'; }}
-                title="Select on Map"
-              >
-                <MapIcon size={20} />
-              </button>
-              {/* Location Picker */}
-              <div className="select-wrapper location-wrapper">
-                {activeTab === 'standard' ? (
-                  <select
-                    className="custom-select"
-                    value={selectedLocationId}
-                    onChange={handleLocationChange}
-                  >
-                    {data.map(loc => (
-                      <option key={loc.id} value={loc.id}>{loc.name}</option>
-                    ))}
-                  </select>
+                  transition: 'all 0.2s'
+                }}>
+                {weatherLoading ? (
+                  <span style={{ opacity: 0.7 }}>Loading...</span>
+                ) : weather.temp !== null ? (
+                  <>
+                    {weather.rainProb !== null && weather.rainProb >= 80 ? (
+                      <CloudLightning size={16} style={{ color: '#fbbf24' }} />
+                    ) : weather.rainProb !== null && weather.rainProb >= 50 ? (
+                      <CloudRain size={16} style={{ color: '#60a5fa' }} />
+                    ) : (
+                      <CloudSun size={16} style={{ color: '#3b82f6' }} />
+                    )}
+                    <span>
+                      {Math.round(weather.temp)}°C
+                      <span style={{ opacity: 0.3, margin: '0 6px' }}>|</span>
+                      {Math.round(weather.windSpeed || 0)} km/h
+                      {weather.rainProb !== null && (
+                        <>
+                          <span style={{ opacity: 0.3, margin: '0 6px' }}>|</span>
+                          {weather.rainProb}% rain
+                        </>
+                      )}
+                    </span>
+                  </>
                 ) : (
-                  <button 
-                    className="custom-select" 
-                    style={{ textAlign: 'left', minWidth: '160px' }}
-                    onClick={() => setIsLocalMapModalOpen(true)}
-                  >
-                    {localCoordinate ? `${localCoordinate.lat.toFixed(2)}, ${localCoordinate.lng.toFixed(2)}` : 'Select Location'}
-                  </button>
+                  <span style={{ opacity: 0.7 }}>No weather data</span>
                 )}
               </div>
-              {/* Date Picker */}
-              <div className="select-wrapper date-wrapper">
-                <input
-                  type="date"
-                  className="custom-select"
-                  value={selectedDate}
-                  onChange={handleDateChange}
-                  min="2026-01-01"
-                  max="2026-12-31"
-                />
-              </div>
-              {/* Best Fishing Time Toggle */}
-              <button
-                className={`fishing-btn${showFishingTime ? ' active' : ''}`}
-                onClick={() => setShowFishingTime(f => !f)}
-                style={{
-                  background: showFishingTime ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                  border: `1px solid ${showFishingTime ? 'rgba(239, 68, 68, 0.5)' : 'rgba(255, 255, 255, 0.1)'}`,
-                  padding: '0.5rem 0.75rem',
-                  borderRadius: '8px',
-                  color: showFishingTime ? '#ef4444' : '#94a3b8',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.4rem',
-                  transition: 'all 0.2s',
-                  fontSize: '0.8rem',
-                  whiteSpace: 'nowrap'
-                }}
-                title="Best Fishing Time"
-              >
-                <Fish size={18} />
-                <span className="desktop-only-title">Fishing</span>
-              </button>
             </div>
+
+            {/* Bottom Row: Location Subtitle & Controls */}
+            <div className="header-bottom-row">
+              <p className="location-subtitle"><MapPin size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} /> {selectedLocationName} (2026)</p>
+
+              <div className="controls-group">
+                {/* Map Button */}
+                <button
+                  onClick={() => activeTab === 'standard' ? setIsMapModalOpen(true) : setIsLocalMapModalOpen(true)}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    padding: '0.5rem',
+                    borderRadius: '8px',
+                    color: '#94a3b8',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.2s',
+                    width: '42px',
+                    height: '42px'
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'; }}
+                  title="Select on Map"
+                >
+                  <MapIcon size={20} />
+                </button>
+                {/* Location Picker */}
+                <div className="select-wrapper location-wrapper">
+                  {activeTab === 'standard' ? (
+                    <select
+                      className="custom-select"
+                      value={selectedLocationId}
+                      onChange={handleLocationChange}
+                    >
+                      {data.map(loc => (
+                        <option key={loc.id} value={loc.id}>{loc.name}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <button
+                      className="custom-select"
+                      style={{ textAlign: 'left', minWidth: '160px' }}
+                      onClick={() => setIsLocalMapModalOpen(true)}
+                    >
+                      {localCoordinate ? `${localCoordinate.lat.toFixed(2)}, ${localCoordinate.lng.toFixed(2)}` : 'Select Location'}
+                    </button>
+                  )}
+                </div>
+                {/* Date Picker */}
+                <div className="select-wrapper date-wrapper">
+                  <input
+                    type="date"
+                    className="custom-select"
+                    value={selectedDate}
+                    onChange={handleDateChange}
+                    min="2026-01-01"
+                    max="2026-12-31"
+                  />
+                </div>
+                {/* Best Fishing Time Toggle */}
+                <button
+                  className={`fishing-btn${showFishingTime ? ' active' : ''}`}
+                  onClick={() => setShowFishingTime(f => !f)}
+                  style={{
+                    background: showFishingTime ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                    border: `1px solid ${showFishingTime ? 'rgba(239, 68, 68, 0.5)' : 'rgba(255, 255, 255, 0.1)'}`,
+                    padding: '0.5rem 0.75rem',
+                    borderRadius: '8px',
+                    color: showFishingTime ? '#ef4444' : '#94a3b8',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.4rem',
+                    transition: 'all 0.2s',
+                    fontSize: '0.8rem',
+                    whiteSpace: 'nowrap'
+                  }}
+                  title="Best Fishing Time"
+                >
+                  <Fish size={18} />
+                  <span className="desktop-only-title">Fishing</span>
+                </button>
+              </div>
+            </div>
+
           </div>
 
-        </div>
-
-        {/* Chart Area */}
-        <div
-          className="chart-container"
-          style={{ position: 'relative' }}
-          onClick={() => {
-            if (activeHoverData) {
-              if (pinnedData && pinnedData.label === activeHoverData.label) {
-                setPinnedData(null);
-              } else {
-                setPinnedData(activeHoverData);
-              }
-            } else {
-              setPinnedData(null);
-            }
-          }}
-        >
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart
-              data={chartData}
-              margin={{ top: 30, right: 10, left: -15, bottom: 0 }}
-              onMouseMove={(e: any) => {
-                if (e && e.activePayload) {
-                  setActiveHoverData({
-                    payload: e.activePayload,
-                    label: e.activeLabel,
-                    coordinate: e.activeCoordinate
-                  });
+          {/* Chart Area */}
+          <div
+            className="chart-container"
+            style={{ position: 'relative' }}
+            onClick={() => {
+              if (activeHoverData) {
+                if (pinnedData && pinnedData.label === activeHoverData.label) {
+                  setPinnedData(null);
                 } else {
-                  setActiveHoverData(null);
+                  setPinnedData(activeHoverData);
                 }
-              }}
-              onMouseLeave={() => setActiveHoverData(null)}
-            >
-              <defs>
-                <linearGradient id="colorLevel" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#34d399" stopOpacity={0.8} />
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                </linearGradient>
-                {showFishingTime && (
-                  <linearGradient id="colorFishing" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0.05} />
-                  </linearGradient>
-                )}
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
-              <XAxis
-                dataKey="hour"
-                type="number"
-                domain={[0, 23]}
-                ticks={[0, 3, 6, 9, 12, 15, 18, 21]}
-                tickFormatter={(val) => `${val.toString().padStart(2, '0')}:00`}
-                stroke="#94a3b8"
-                tick={{ fill: '#94a3b8', fontSize: 11 }}
-                tickMargin={5}
-                minTickGap={20}
-              />
-              <YAxis
-                stroke="#94a3b8"
-                tick={{ fill: '#94a3b8', fontSize: 11 }}
-                domain={[0, 4]}
-                tickFormatter={(value) => `${value}m`}
-              />
-              <Tooltip
-                content={({ active, payload, label }) => {
-                  if (active && payload && payload.length) {
-                    if (pinnedData && pinnedData.label === label) return null;
-                    return (
-                      <div className="custom-tooltip">
-                        <p className="label">{`${label?.toString().padStart(2, '0')}:00`}</p>
-                        <p className="value">{`${Number(payload[0].value).toFixed(2)} m`}</p>
-                      </div>
-                    );
+              } else {
+                setPinnedData(null);
+              }
+            }}
+          >
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart
+                data={chartData}
+                margin={{ top: 30, right: 10, left: -15, bottom: 0 }}
+                onMouseMove={(e: any) => {
+                  if (e && e.activePayload) {
+                    setActiveHoverData({
+                      payload: e.activePayload,
+                      label: e.activeLabel,
+                      coordinate: e.activeCoordinate
+                    });
+                  } else {
+                    setActiveHoverData(null);
                   }
-                  return null;
                 }}
-              />
-              <Area
-                type="monotone"
-                dataKey="level"
-                stroke="#34d399"
-                strokeWidth={3}
-                fillOpacity={1}
-                fill="url(#colorLevel)"
-                activeDot={{ r: 6, fill: "#fff", stroke: "#34d399", strokeWidth: 2 }}
-              />
-              {showFishingTime && fishingPeriods.map((period, i) => (
-                <ReferenceArea
-                  key={`fish-${i}`}
-                  x1={period.start}
-                  x2={period.end}
-                  fill="#ef4444"
-                  fillOpacity={0.15}
-                  stroke="#ef4444"
-                  strokeOpacity={0.3}
-                  strokeDasharray="4 4"
+                onMouseLeave={() => setActiveHoverData(null)}
+              >
+                <defs>
+                  <linearGradient id="colorLevel" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#34d399" stopOpacity={0.8} />
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                  </linearGradient>
+                  {showFishingTime && (
+                    <linearGradient id="colorFishing" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#ef4444" stopOpacity={0.05} />
+                    </linearGradient>
+                  )}
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
+                <XAxis
+                  dataKey="hour"
+                  type="number"
+                  domain={[0, 23]}
+                  ticks={[0, 3, 6, 9, 12, 15, 18, 21]}
+                  tickFormatter={(val) => `${val.toString().padStart(2, '0')}:00`}
+                  stroke="#94a3b8"
+                  tick={{ fill: '#94a3b8', fontSize: 11 }}
+                  tickMargin={5}
+                  minTickGap={20}
                 />
-              ))}
-              {pinnedData && (
-                <ReferenceDot
-                  x={pinnedData.label}
-                  y={pinnedData.payload[0].value}
-                  r={6}
-                  fill="#fff"
+                <YAxis
+                  stroke="#94a3b8"
+                  tick={{ fill: '#94a3b8', fontSize: 11 }}
+                  domain={[0, 4]}
+                  tickFormatter={(value) => `${value}m`}
+                />
+                <Tooltip
+                  content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      if (pinnedData && pinnedData.label === label) return null;
+                      return (
+                        <div className="custom-tooltip">
+                          <p className="label">{`${label?.toString().padStart(2, '0')}:00`}</p>
+                          <p className="value">{`${Number(payload[0].value).toFixed(2)} m`}</p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="level"
                   stroke="#34d399"
-                  strokeWidth={2}
+                  strokeWidth={3}
+                  fillOpacity={1}
+                  fill="url(#colorLevel)"
+                  activeDot={{ r: 6, fill: "#fff", stroke: "#34d399", strokeWidth: 2 }}
                 />
-              )}
-              {currentLevelData && (
-                <ReferenceLine 
-                  x={currentLevelData.xPos} 
-                  stroke="#ef4444" 
-                  strokeWidth={2}
-                  label={(props) => <CurrentTimeLabel {...props} value={currentLevelData.level} isRising={currentLevelData.isRising} />}
-                />
-              )}
-            </AreaChart>
-          </ResponsiveContainer>
+                {showFishingTime && fishingPeriods.map((period, i) => (
+                  <ReferenceArea
+                    key={`fish-${i}`}
+                    x1={period.start}
+                    x2={period.end}
+                    fill="#ef4444"
+                    fillOpacity={0.15}
+                    stroke="#ef4444"
+                    strokeOpacity={0.3}
+                    strokeDasharray="4 4"
+                  />
+                ))}
+                {pinnedData && (
+                  <ReferenceDot
+                    x={pinnedData.label}
+                    y={pinnedData.payload[0].value}
+                    r={6}
+                    fill="#fff"
+                    stroke="#34d399"
+                    strokeWidth={2}
+                  />
+                )}
+                {currentLevelData && (
+                  <ReferenceLine
+                    x={currentLevelData.xPos}
+                    stroke="#ef4444"
+                    strokeWidth={2}
+                    label={(props) => <CurrentTimeLabel {...props} value={currentLevelData.level} isRising={currentLevelData.isRising} />}
+                  />
+                )}
+              </AreaChart>
+            </ResponsiveContainer>
 
-          {pinnedData && pinnedData.coordinate && (
-            <div
-              style={{
-                position: 'absolute',
-                left: pinnedData.coordinate.x,
-                top: pinnedData.coordinate.y,
-                pointerEvents: 'none',
-                transform: 'translate(-50%, -100%)',
-                marginTop: '-10px',
-                zIndex: 100
-              }}
-            >
-              <div className="custom-tooltip">
-                <p className="label">{`${pinnedData.label?.toString().padStart(2, '0')}:00`}</p>
-                <p className="value">{`${Number(pinnedData.payload[0].value).toFixed(2)} m`}</p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Statistics Area */}
-        {stats && (
-          <div className="stats-container">
-            <div className="stat-card">
-              <div className="stat-icon-wrapper high">
-                <TrendingUp size={20} />
-              </div>
-              <div className="stat-info">
-                <span className="stat-label">Highest Sea Level</span>
-                <span className="stat-value">{stats.max.level.toFixed(2)} m <span className="stat-time">at {stats.max.time}</span></span>
-              </div>
-            </div>
-
-            <div className="stat-card">
-              <div className="stat-icon-wrapper low">
-                <TrendingDown size={20} />
-              </div>
-              <div className="stat-info">
-                <span className="stat-label">Lowest Sea Level</span>
-                <span className="stat-value">{stats.min.level.toFixed(2)} m <span className="stat-time">at {stats.min.time}</span></span>
-              </div>
-            </div>
-
-            <div className="stat-card" style={{ cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => setIsModalOpen(true)} onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}>
-              <div className="stat-icon-wrapper" style={{ background: 'rgba(251, 191, 36, 0.15)', color: '#fbbf24' }}>
-                <Moon size={20} />
-              </div>
-              <div className="stat-info">
-                <span className="stat-label">ข้างขึ้นข้างแรม</span>
-                <span className="stat-value">{lunarPhase.emoji} {lunarPhase.phase}</span>
-              </div>
-            </div>
-
-            {maxWave && (
-              <div className="stat-card" style={{ cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => setIsWaveModalOpen(true)} onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}>
-                <div className="stat-icon-wrapper" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }}>
-                  <Waves size={20} />
-                </div>
-                <div className="stat-info">
-                  <span className="stat-label">Max Wave Height</span>
-                  <span className="stat-value">{maxWave.level.toFixed(2)} m <span className="stat-time">at {maxWave.time}</span></span>
+            {pinnedData && pinnedData.coordinate && (
+              <div
+                style={{
+                  position: 'absolute',
+                  left: pinnedData.coordinate.x,
+                  top: pinnedData.coordinate.y,
+                  pointerEvents: 'none',
+                  transform: 'translate(-50%, -100%)',
+                  marginTop: '-10px',
+                  zIndex: 100
+                }}
+              >
+                <div className="custom-tooltip">
+                  <p className="label">{`${pinnedData.label?.toString().padStart(2, '0')}:00`}</p>
+                  <p className="value">{`${Number(pinnedData.payload[0].value).toFixed(2)} m`}</p>
                 </div>
               </div>
             )}
           </div>
-        )}
 
-      </div>
+          {/* Statistics Area */}
+          {stats && (
+            <div className="stats-container">
+              <div className="stat-card">
+                <div className="stat-icon-wrapper high">
+                  <TrendingUp size={20} />
+                </div>
+                <div className="stat-info">
+                  <span className="stat-label">Highest Sea Level</span>
+                  <span className="stat-value">{stats.max.level.toFixed(2)} m <span className="stat-time">at {stats.max.time}</span></span>
+                </div>
+              </div>
 
-      <LunarModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        dateStr={selectedDate}
-        lat={selectedLocation?.lat}
-        lng={selectedLocation?.lng}
-        locationName={selectedLocationName}
-      />
+              <div className="stat-card">
+                <div className="stat-icon-wrapper low">
+                  <TrendingDown size={20} />
+                </div>
+                <div className="stat-info">
+                  <span className="stat-label">Lowest Sea Level</span>
+                  <span className="stat-value">{stats.min.level.toFixed(2)} m <span className="stat-time">at {stats.min.time}</span></span>
+                </div>
+              </div>
 
-      <MapModal
-        isOpen={isMapModalOpen}
-        onClose={() => setIsMapModalOpen(false)}
-        locations={data}
-        selectedLocationId={selectedLocationId}
-        onSelectLocation={setSelectedLocationId}
-      />
+              <div className="stat-card" style={{ cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => setIsModalOpen(true)} onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}>
+                <div className="stat-icon-wrapper" style={{ background: 'rgba(251, 191, 36, 0.15)', color: '#fbbf24' }}>
+                  <Moon size={20} />
+                </div>
+                <div className="stat-info">
+                  <span className="stat-label">ข้างขึ้นข้างแรม</span>
+                  <span className="stat-value">{lunarPhase.emoji} {lunarPhase.phase}</span>
+                </div>
+              </div>
 
-      <WeatherModal
-        isOpen={isWeatherModalOpen}
-        onClose={() => setIsWeatherModalOpen(false)}
-        locationName={selectedLocationName}
-        dateStr={selectedDate}
-        hourlyData={weather.hourly}
-      />
+              {maxWave && (
+                <div className="stat-card" style={{ cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => setIsWaveModalOpen(true)} onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}>
+                  <div className="stat-icon-wrapper" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }}>
+                    <Waves size={20} />
+                  </div>
+                  <div className="stat-info">
+                    <span className="stat-label">Max Wave Height</span>
+                    <span className="stat-value">{maxWave.level.toFixed(2)} m <span className="stat-time">at {maxWave.time}</span></span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
-      <WaveModal
-        isOpen={isWaveModalOpen}
-        onClose={() => setIsWaveModalOpen(false)}
-        locationName={selectedLocationName}
-        dateStr={selectedDate}
-        hourlyData={weather.hourly}
-      />
-      <LocalMapModal
-        isOpen={isLocalMapModalOpen}
-        onClose={() => setIsLocalMapModalOpen(false)}
-        initialLat={localCoordinate?.lat || (activeTab === 'standard' && selectedLocation?.lat ? selectedLocation.lat : 13.7563)}
-        initialLng={localCoordinate?.lng || (activeTab === 'standard' && selectedLocation?.lng ? selectedLocation.lng : 100.5018)}
-        onSelectCoordinate={(lat, lng) => setLocalCoordinate({ lat, lng })}
-      />
+        </div>
+
+        <LunarModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          dateStr={selectedDate}
+          lat={selectedLocation?.lat}
+          lng={selectedLocation?.lng}
+          locationName={selectedLocationName}
+        />
+
+        <MapModal
+          isOpen={isMapModalOpen}
+          onClose={() => setIsMapModalOpen(false)}
+          locations={data}
+          selectedLocationId={selectedLocationId}
+          onSelectLocation={setSelectedLocationId}
+        />
+
+        <WeatherModal
+          isOpen={isWeatherModalOpen}
+          onClose={() => setIsWeatherModalOpen(false)}
+          locationName={selectedLocationName}
+          dateStr={selectedDate}
+          hourlyData={weather.hourly}
+        />
+
+        <WaveModal
+          isOpen={isWaveModalOpen}
+          onClose={() => setIsWaveModalOpen(false)}
+          locationName={selectedLocationName}
+          dateStr={selectedDate}
+          hourlyData={weather.hourly}
+        />
+        <LocalMapModal
+          isOpen={isLocalMapModalOpen}
+          onClose={() => setIsLocalMapModalOpen(false)}
+          initialLat={localCoordinate?.lat || (activeTab === 'standard' && selectedLocation?.lat ? selectedLocation.lat : 13.7563)}
+          initialLng={localCoordinate?.lng || (activeTab === 'standard' && selectedLocation?.lng ? selectedLocation.lng : 100.5018)}
+          onSelectCoordinate={(lat, lng) => setLocalCoordinate({ lat, lng })}
+        />
       </div>
     </div>
   );
