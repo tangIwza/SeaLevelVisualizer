@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Waves, Menu, X, Navigation, Map } from 'lucide-react';
+import { Menu, X, Navigation, Map } from 'lucide-react';
 import './Sidebar.css';
 
 interface SidebarProps {
@@ -21,7 +21,7 @@ export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
       <div className={`sidebar-container ${isOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
           <div className="logo-group">
-            <Waves size={28} className="logo-icon" />
+            <img src="/icon.png" alt="SeaLevel Logo" className="logo-img" />
             <h2>SeaLevel <span className="logo-highlight">App</span></h2>
           </div>
           <button className="close-sidebar-btn" onClick={() => setIsOpen(false)}>
