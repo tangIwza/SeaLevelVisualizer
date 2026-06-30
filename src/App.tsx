@@ -5,6 +5,8 @@ import { LunarModal } from './LunarModal';
 import { MapModal } from './MapModal';
 import { WeatherModal, type HourlyWeather } from './WeatherModal';
 import { WaveModal } from './WaveModal';
+import { Sidebar } from './Sidebar';
+import { LocalMapModal } from './LocalMapModal';
 
 interface DayData {
   day: number;
@@ -107,8 +109,11 @@ const CurrentTimeLabel = (props: any) => {
 function App() {
   const [data, setData] = useState<LocationData[]>([]);
   const [selectedLocationId, setSelectedLocationId] = useState<string>("MT");
+  const [activeTab, setActiveTab] = useState<'standard' | 'local'>('standard');
+  const [localCoordinate, setLocalCoordinate] = useState<{lat: number, lng: number} | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+  const [isLocalMapModalOpen, setIsLocalMapModalOpen] = useState(false);
   const [isWeatherModalOpen, setIsWeatherModalOpen] = useState(false);
   const [isWaveModalOpen, setIsWaveModalOpen] = useState(false);
   const [pinnedData, setPinnedData] = useState<any>(null);
@@ -137,7 +142,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    fetch('/tide_data.json')
+    fetch('tide_data.json')
       .then(response => {
         if (!response.ok) throw new Error('Failed to load data');
         return response.json();
@@ -180,12 +185,25 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const loc = data.find(l => l.id === selectedLocationId);
-    if (!loc || !loc.lat || !loc.lng) return;
+    let targetLat: number | undefined;
+    let targetLng: number | undefined;
+
+    if (activeTab === 'standard') {
+      const loc = data.find(l => l.id === selectedLocationId);
+      if (loc) {
+        targetLat = loc.lat;
+        targetLng = loc.lng;
+      }
+    } else if (activeTab === 'local' && localCoordinate) {
+      targetLat = localCoordinate.lat;
+      targetLng = localCoordinate.lng;
+    }
+
+    if (!targetLat || !targetLng) return;
 
     setWeatherLoading(true);
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lng}&hourly=temperature_2m,wind_speed_10m,precipitation_probability,relative_humidity_2m&daily=temperature_2m_max,wind_speed_10m_max,precipitation_probability_max&timezone=Asia%2FBangkok&start_date=${selectedDate}&end_date=${selectedDate}`;
-    const marineUrl = `https://marine-api.open-meteo.com/v1/marine?latitude=${loc.lat}&longitude=${loc.lng}&hourly=wave_height&timezone=Asia%2FBangkok&start_date=${selectedDate}&end_date=${selectedDate}`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${targetLat}&longitude=${targetLng}&hourly=temperature_2m,wind_speed_10m,precipitation_probability,relative_humidity_2m&daily=temperature_2m_max,wind_speed_10m_max,precipitation_probability_max&timezone=Asia%2FBangkok&start_date=${selectedDate}&end_date=${selectedDate}`;
+    const marineUrl = `https://marine-api.open-meteo.com/v1/marine?latitude=${targetLat}&longitude=${targetLng}&hourly=wave_height&timezone=Asia%2FBangkok&start_date=${selectedDate}&end_date=${selectedDate}`;
 
     Promise.all([
       fetch(url).then(res => res.json()),
@@ -243,7 +261,7 @@ function App() {
         setWeather({ temp: null, windSpeed: null, rainProb: null, hourly: [] });
       })
       .finally(() => setWeatherLoading(false));
-  }, [selectedLocationId, selectedDate, data]);
+  }, [selectedLocationId, selectedDate, data, activeTab, localCoordinate]);
 
   const selectedMonth = parseInt(selectedDate.split('-')[1], 10);
   const selectedDay = parseInt(selectedDate.split('-')[2], 10);
@@ -252,21 +270,69 @@ function App() {
   const chartData = useMemo(() => {
     if (!data.length) return [];
 
-    const locationData = data.find(loc => loc.id === selectedLocationId);
-    if (!locationData) return [];
+    if (activeTab === 'standard') {
+      const locationData = data.find(loc => loc.id === selectedLocationId);
+      if (!locationData) return [];
 
-    const monthData = locationData.data.find(m => m.month === selectedMonth);
-    if (!monthData) return [];
+      const monthData = locationData.data.find(m => m.month === selectedMonth);
+      if (!monthData) return [];
 
-    const dayData = monthData.days.find(d => d.day === selectedDay);
-    if (!dayData) return [];
+      const dayData = monthData.days.find(d => d.day === selectedDay);
+      if (!dayData) return [];
 
-    return dayData.hours.map((val, index) => ({
-      time: `${index.toString().padStart(2, '0')}:00`,
-      hour: index,
-      level: val
-    }));
-  }, [data, selectedLocationId, selectedMonth, selectedDay]);
+      return dayData.hours.map((val, index) => ({
+        time: `${index.toString().padStart(2, '0')}:00`,
+        hour: index,
+        level: val
+      }));
+    } else {
+      // Local mode
+      if (!localCoordinate) return [];
+      
+      const validLocations = data.filter(loc => loc.lat !== undefined && loc.lng !== undefined);
+      if (validLocations.length < 2) return [];
+
+      const distances = validLocations.map(loc => {
+        const dist = getDistanceFromLatLonInKm(localCoordinate.lat, localCoordinate.lng, loc.lat!, loc.lng!);
+        return { loc, dist };
+      });
+
+      distances.sort((a, b) => a.dist - b.dist);
+      const p1 = distances[0];
+      const p2 = distances[1];
+
+      let w1, w2;
+      if (p1.dist === 0) {
+        w1 = 1; w2 = 0;
+      } else if (p2.dist === 0) {
+        w1 = 0; w2 = 1;
+      } else {
+        w1 = p2.dist / (p1.dist + p2.dist);
+        w2 = p1.dist / (p1.dist + p2.dist);
+      }
+
+      const p1Month = p1.loc.data.find(m => m.month === selectedMonth);
+      const p2Month = p2.loc.data.find(m => m.month === selectedMonth);
+
+      if (!p1Month || !p2Month) return [];
+
+      const p1Day = p1Month.days.find(d => d.day === selectedDay);
+      const p2Day = p2Month.days.find(d => d.day === selectedDay);
+
+      if (!p1Day || !p2Day) return [];
+
+      return p1Day.hours.map((val1, index) => {
+        const val2 = p2Day.hours[index];
+        const interpolatedLevel = (val1 * w1) + (val2 * w2);
+        
+        return {
+          time: `${index.toString().padStart(2, '0')}:00`,
+          hour: index,
+          level: interpolatedLevel
+        };
+      });
+    }
+  }, [data, selectedLocationId, selectedMonth, selectedDay, activeTab, localCoordinate]);
 
   const stats = useMemo(() => {
     if (!chartData.length) return null;
@@ -371,7 +437,9 @@ function App() {
   };
 
   const selectedLocation = data.find(loc => loc.id === selectedLocationId);
-  const selectedLocationName = selectedLocation?.name || 'Unknown Location';
+  const selectedLocationName = activeTab === 'standard' 
+    ? (selectedLocation?.name || 'Unknown Location')
+    : (localCoordinate ? `Custom (${localCoordinate.lat.toFixed(4)}, ${localCoordinate.lng.toFixed(4)})` : 'Select a location');
 
   if (loading) {
     return (
@@ -394,8 +462,10 @@ function App() {
   }
 
   return (
-    <div className="app-container">
-      <div className="dashboard-card">
+    <div className="app-layout">
+      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      <div className="app-container">
+        <div className="dashboard-card">
 
         {/* Header and Controls */}
         <div className="dashboard-header">
@@ -461,7 +531,7 @@ function App() {
             <div className="controls-group">
               {/* Map Button */}
               <button
-                onClick={() => setIsMapModalOpen(true)}
+                onClick={() => activeTab === 'standard' ? setIsMapModalOpen(true) : setIsLocalMapModalOpen(true)}
                 style={{
                   background: 'rgba(255, 255, 255, 0.05)',
                   border: '1px solid rgba(255, 255, 255, 0.1)',
@@ -484,15 +554,25 @@ function App() {
               </button>
               {/* Location Picker */}
               <div className="select-wrapper location-wrapper">
-                <select
-                  className="custom-select"
-                  value={selectedLocationId}
-                  onChange={handleLocationChange}
-                >
-                  {data.map(loc => (
-                    <option key={loc.id} value={loc.id}>{loc.name}</option>
-                  ))}
-                </select>
+                {activeTab === 'standard' ? (
+                  <select
+                    className="custom-select"
+                    value={selectedLocationId}
+                    onChange={handleLocationChange}
+                  >
+                    {data.map(loc => (
+                      <option key={loc.id} value={loc.id}>{loc.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <button 
+                    className="custom-select" 
+                    style={{ textAlign: 'left', minWidth: '160px' }}
+                    onClick={() => setIsLocalMapModalOpen(true)}
+                  >
+                    {localCoordinate ? `${localCoordinate.lat.toFixed(2)}, ${localCoordinate.lng.toFixed(2)}` : 'Select Location'}
+                  </button>
+                )}
               </div>
               {/* Date Picker */}
               <div className="select-wrapper date-wrapper">
@@ -754,6 +834,14 @@ function App() {
         dateStr={selectedDate}
         hourlyData={weather.hourly}
       />
+      <LocalMapModal
+        isOpen={isLocalMapModalOpen}
+        onClose={() => setIsLocalMapModalOpen(false)}
+        initialLat={localCoordinate?.lat || (activeTab === 'standard' && selectedLocation?.lat ? selectedLocation.lat : 13.7563)}
+        initialLng={localCoordinate?.lng || (activeTab === 'standard' && selectedLocation?.lng ? selectedLocation.lng : 100.5018)}
+        onSelectCoordinate={(lat, lng) => setLocalCoordinate({ lat, lng })}
+      />
+      </div>
     </div>
   );
 }
