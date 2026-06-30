@@ -305,13 +305,13 @@ function App() {
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.5rem',
+                gap: '0.4rem',
                 background: 'rgba(255, 255, 255, 0.05)',
                 border: '1px solid rgba(255, 255, 255, 0.1)',
-                padding: '0.6rem 1rem',
+                padding: '0.4rem 0.75rem',
                 borderRadius: '8px',
                 color: '#f8fafc',
-                fontSize: '0.9rem',
+                fontSize: '0.8rem',
                 minWidth: 'fit-content',
                 cursor: 'pointer',
                 transition: 'all 0.2s'
@@ -418,7 +418,7 @@ function App() {
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
               data={chartData}
-              margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+              margin={{ top: 5, right: 10, left: -15, bottom: 0 }}
               onMouseMove={(e: any) => {
                 if (e && e.activePayload) {
                   setActiveHoverData({
@@ -447,12 +447,12 @@ function App() {
                 tickFormatter={(val) => `${val.toString().padStart(2, '0')}:00`}
                 stroke="#94a3b8"
                 tick={{ fill: '#94a3b8', fontSize: 11 }}
-                tickMargin={10}
-                minTickGap={5}
+                tickMargin={5}
+                minTickGap={20}
               />
               <YAxis
                 stroke="#94a3b8"
-                tick={{ fill: '#94a3b8', fontSize: 12 }}
+                tick={{ fill: '#94a3b8', fontSize: 11 }}
                 domain={[0, 4]}
                 tickFormatter={(value) => `${value}m`}
               />

@@ -72,3 +72,27 @@
   text-align: center;
   color: var(--text-secondary);
 }
+
+@media (max-width: 768px) {
+  .weather-modal {
+    max-width: 92%;
+  }
+
+  .hourly-weather-list {
+    margin-top: 1rem;
+  }
+
+  .hourly-weather-header {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+  }
+
+  .hourly-row {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+  }
+
+  .hourly-weather-body {
+    max-height: 280px;
+  }
+}

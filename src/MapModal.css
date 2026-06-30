@@ -84,3 +84,21 @@
 .select-station-btn:hover {
   background: #2563eb;
 }
+
+@media (max-width: 768px) {
+  .map-modal-content {
+    width: 95%;
+    height: 85vh;
+    padding: 1rem;
+    border-radius: 16px;
+  }
+
+  .map-title h2 {
+    font-size: 1.1rem;
+  }
+
+  .map-header {
+    margin-bottom: 0.5rem;
+  }
+}
+
