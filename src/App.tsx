@@ -463,7 +463,7 @@ function App() {
                     return (
                       <div className="custom-tooltip">
                         <p className="label">{`${label?.toString().padStart(2, '0')}:00`}</p>
-                        <p className="value">{`${payload[0].value} m`}</p>
+                        <p className="value">{`${Number(payload[0].value).toFixed(2)} m`}</p>
                       </div>
                     );
                   }
@@ -506,7 +506,7 @@ function App() {
             >
               <div className="custom-tooltip">
                 <p className="label">{`${pinnedData.label?.toString().padStart(2, '0')}:00`}</p>
-                <p className="value">{`${pinnedData.payload[0].value} m`}</p>
+                <p className="value">{`${Number(pinnedData.payload[0].value).toFixed(2)} m`}</p>
               </div>
             </div>
           )}
@@ -521,7 +521,7 @@ function App() {
               </div>
               <div className="stat-info">
                 <span className="stat-label">Highest Sea Level</span>
-                <span className="stat-value">{stats.max.level} m <span className="stat-time">at {stats.max.time}</span></span>
+                <span className="stat-value">{stats.max.level.toFixed(2)} m <span className="stat-time">at {stats.max.time}</span></span>
               </div>
             </div>
 
@@ -531,7 +531,7 @@ function App() {
               </div>
               <div className="stat-info">
                 <span className="stat-label">Lowest Sea Level</span>
-                <span className="stat-value">{stats.min.level} m <span className="stat-time">at {stats.min.time}</span></span>
+                <span className="stat-value">{stats.min.level.toFixed(2)} m <span className="stat-time">at {stats.min.time}</span></span>
               </div>
             </div>
 
@@ -552,7 +552,7 @@ function App() {
                 </div>
                 <div className="stat-info">
                   <span className="stat-label">Max Wave Height</span>
-                  <span className="stat-value">{maxWave.level.toFixed(1)} m <span className="stat-time">at {maxWave.time}</span></span>
+                  <span className="stat-value">{maxWave.level.toFixed(2)} m <span className="stat-time">at {maxWave.time}</span></span>
                 </div>
               </div>
             )}
