@@ -1,32 +1,71 @@
-# React + TypeScript + Vite
+# Sea Level Visualizer
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Sea Level Visualizer is a web-based interactive application designed to visualize sea level and tide data. Built with React, TypeScript, and Vite, the app parses official tide table PDFs and displays them interactively on an interactive map along with detailed charts.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Interactive Maps**: Browse and select locations from a geographic map using React Leaflet.
+- **Tide Data Charts**: Interactive time-series charts visualizing hourly tide heights using Recharts.
+- **Lunar Phases**: View the lunar phase associated with any given date.
+- **Weather & Wave Data**: Modals integrating local weather and wave forecasts.
+- **Data Processing Pipeline**: Python scripts leveraging `pdfplumber` to automatically extract structural tide data from standard PDF documents into a structured JSON format.
+- **PWA Support**: Installable progressive web app capabilities for offline access and native-like experience.
 
-## React Compiler
+## Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Frontend
+- **Framework:** React 19, TypeScript, Vite
+- **Mapping:** Leaflet, React Leaflet
+- **Charts:** Recharts
+- **Icons:** Lucide React
+- **Utils:** Suncalc (for lunar/solar calculations)
+- **PWA:** vite-plugin-pwa
 
-## Expanding the Oxlint configuration
+### Data Processing
+- **Language:** Python
+- **Libraries:** `pdfplumber` (for PDF text extraction)
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+## Getting Started
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+### Prerequisites
+- Node.js (v18+)
+- Python 3.x (only if you need to run the data processing scripts)
+
+### Installation
+
+1. Clone the repository and install frontend dependencies:
+   ```bash
+   npm install
+   ```
+
+2. (Optional) Set up Python environment for data processing:
+   ```bash
+   pip install pdfplumber
+   ```
+
+### Running the App
+
+Start the development server:
+```bash
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Build for production:
+```bash
+npm run build
+```
+
+Preview production build:
+```bash
+npm run preview
+```
+
+### Updating Tide Data
+
+To update or add new tide data from PDFs:
+1. Place your target PDFs into the `data_processing/PDF` directory.
+2. Run the extraction script:
+   ```bash
+   python data_processing/extract_all_data.py
+   ```
+3. The script will parse the PDFs and output a formatted `tide_data.json` directly into the `public` directory, making it immediately available to the web app.
