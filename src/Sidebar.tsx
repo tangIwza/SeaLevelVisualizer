@@ -13,7 +13,7 @@ export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
   return (
     <>
       <button className="mobile-menu-btn" onClick={() => setIsOpen(true)}>
-        <Menu size={24} />
+        <Menu size={20} />
       </button>
 
       <div className={`sidebar-overlay ${isOpen ? 'open' : ''}`} onClick={() => setIsOpen(false)} />

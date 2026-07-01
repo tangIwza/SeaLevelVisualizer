@@ -94,10 +94,10 @@
   border: none;
   color: #f8fafc;
   cursor: pointer;
-  padding: 0.5rem;
+  padding: 0.25rem;
   position: absolute;
-  top: 0.65rem;
-  left: 0.5rem;
+  top: 0.7rem;
+  left: 0.25rem;
   z-index: 30;
 }
 

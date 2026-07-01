@@ -240,9 +240,10 @@ body {
 
   .title-group h1,
   .title-group-left h1 {
-    font-size: 1.25rem;
+    font-size: 1.1rem;
     margin-bottom: 0;
-    margin-left: 2.75rem;
+    margin-left: 2.25rem;
+    white-space: nowrap;
   }
 
   .desktop-only-title {
