@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { X, Navigation } from 'lucide-react';
+import { OpenStreetMapLayer } from './OpenStreetMapLayer';
 import './MapModal.css';
 
 // Fix for default marker icons in react-leaflet
@@ -67,10 +68,7 @@ export function MapModal({ isOpen, onClose, locations, selectedLocationId, onSel
         
         <div className="map-container-wrapper">
           <MapContainer center={[centerLat, centerLng]} zoom={6} scrollWheelZoom={true} style={{ height: '100%', width: '100%' }}>
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-            />
+            <OpenStreetMapLayer />
             {selectedLoc?.lat && selectedLoc?.lng && (
               <FlyToSelected lat={selectedLoc.lat} lng={selectedLoc.lng} />
             )}

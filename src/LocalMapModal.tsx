@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
+import { MapContainer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { X, Navigation, Search } from 'lucide-react';
+import { OpenStreetMapLayer } from './OpenStreetMapLayer';
 import './MapModal.css';
 
 // Fix for default marker icons in react-leaflet
@@ -143,10 +144,7 @@ export function LocalMapModal({ isOpen, onClose, initialLat = 13.7563, initialLn
 
         <div className="map-container-wrapper" style={{ height: '300px' }}>
           <MapContainer center={[initialLat, initialLng]} zoom={6} scrollWheelZoom={true} style={{ height: '100%', width: '100%' }}>
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-            />
+            <OpenStreetMapLayer />
             <LocationMarker position={position} setPosition={setPosition} />
             <MapUpdater center={mapCenter} />
           </MapContainer>
