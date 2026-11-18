@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart, ReferenceDot, ReferenceArea, ReferenceLine } from 'recharts';
 import { MapPin, TrendingUp, TrendingDown, Moon, Map as MapIcon, CloudSun, CloudRain, CloudLightning, Waves, Fish } from 'lucide-react';
 import { LunarModal } from './LunarModal';
@@ -24,6 +24,18 @@ interface LocationData {
   lat?: number;
   lng?: number;
   data: MonthData[];
+}
+
+const tideFiles: Record<string, string> = {
+  '2026': 'tide_data.json',
+  '2027': 'tide_data_2027.json',
+};
+const firstTideDate = '2026-01-01';
+const lastTideDate = '2027-12-31';
+const emptyLocations: LocationData[] = [];
+
+function localDateString(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
 function getLunarPhase(dateStr: string): { phase: string, emoji: string } {
@@ -107,8 +119,9 @@ const CurrentTimeLabel = (props: any) => {
 };
 
 function App() {
-  const [data, setData] = useState<LocationData[]>([]);
-  const [selectedLocationId, setSelectedLocationId] = useState<string>("MT");
+  const [dataByYear, setDataByYear] = useState<Record<string, LocationData[]>>({});
+  const [stationId, setStationId] = useState<string | null>(null);
+  const requestedGeolocation = useRef(false);
   const [activeTab, setActiveTab] = useState<'standard' | 'local'>('standard');
   const [localCoordinate, setLocalCoordinate] = useState<{ lat: number, lng: number } | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -120,11 +133,16 @@ function App() {
   const [showFishingTime, setShowFishingTime] = useState(false);
   const [activeHoverData, setActiveHoverData] = useState<any>(null);
   const [selectedDate, setSelectedDate] = useState<string>(() => {
-    const today = new Date();
-    return `2026-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const today = localDateString(new Date());
+    if (today < firstTideDate) return firstTideDate;
+    if (today > lastTideDate) return lastTideDate;
+    return today;
   });
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const [failedYear, setFailedYear] = useState<string | null>(null);
+  const selectedYear = selectedDate.slice(0, 4);
+  const yearData = dataByYear[selectedYear];
+  const data = yearData ?? emptyLocations;
+  const selectedLocationId = stationId ?? (data.find(loc => loc.id === 'MT') ?? data[0])?.id ?? 'MT';
 
   interface WeatherData {
     temp: number | null;
@@ -142,47 +160,41 @@ function App() {
   }, []);
 
   useEffect(() => {
-    fetch('tide_data.json')
+    if (yearData || failedYear === selectedYear) return;
+    const controller = new AbortController();
+    const { signal } = controller;
+    fetch(tideFiles[selectedYear], { signal })
       .then(response => {
-        if (!response.ok) throw new Error('Failed to load data');
+        if (!response.ok) throw new Error(`Could not load tides for ${selectedYear}`);
         return response.json();
       })
-      .then((jsonData: LocationData[]) => {
-        setData(jsonData);
-        const defaultId = jsonData.find(loc => loc.id === "MT")?.id || (jsonData.length > 0 ? jsonData[0].id : "MT");
-        setSelectedLocationId(defaultId);
-
-        // Try to get GPS and select closest station
-        if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition((position) => {
-            const userLat = position.coords.latitude;
-            const userLng = position.coords.longitude;
-            let closestDist = Infinity;
-            let closestId = defaultId;
-
-            for (const loc of jsonData) {
-              if (loc.lat && loc.lng) {
-                const dist = getDistanceFromLatLonInKm(userLat, userLng, loc.lat, loc.lng);
-                if (dist < closestDist) {
-                  closestDist = dist;
-                  closestId = loc.id;
-                }
-              }
-            }
-            setSelectedLocationId(closestId);
-          }, (err) => {
-            console.warn("Geolocation error:", err.message);
-          });
-        }
-
-        setLoading(false);
+      .then((locations: LocationData[]) => {
+        if (!Array.isArray(locations) || !locations.length) throw new Error('Empty tide table');
+        if (!signal.aborted) setDataByYear(previous => ({ ...previous, [selectedYear]: locations }));
       })
-      .catch(err => {
-        console.error(err);
-        setError(err.message);
-        setLoading(false);
+      .catch(() => {
+        if (!signal.aborted) setFailedYear(selectedYear);
       });
-  }, []);
+    return () => controller.abort();
+  }, [selectedYear, yearData, failedYear]);
+
+  useEffect(() => {
+    if (!data.length || requestedGeolocation.current || !navigator.geolocation) return;
+    requestedGeolocation.current = true;
+    navigator.geolocation.getCurrentPosition(({ coords }) => {
+      let closestDistance = Infinity;
+      let closestId: string | null = null;
+      for (const loc of data) {
+        if (loc.lat === undefined || loc.lng === undefined) continue;
+        const distance = getDistanceFromLatLonInKm(coords.latitude, coords.longitude, loc.lat, loc.lng);
+        if (distance < closestDistance) {
+          closestDistance = distance;
+          closestId = loc.id;
+        }
+      }
+      setStationId(current => current ?? closestId);
+    }, err => console.warn('Geolocation error:', err.message));
+  }, [data]);
 
   useEffect(() => {
     let targetLat: number | undefined;
@@ -199,17 +211,23 @@ function App() {
       targetLng = localCoordinate.lng;
     }
 
-    if (!targetLat || !targetLng) return;
-
+    setWeather({ temp: null, windSpeed: null, rainProb: null, hourly: [] });
+    if (targetLat === undefined || targetLng === undefined) {
+      setWeatherLoading(false);
+      return;
+    }
+    const controller = new AbortController();
+    const { signal } = controller;
     setWeatherLoading(true);
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${targetLat}&longitude=${targetLng}&hourly=temperature_2m,wind_speed_10m,precipitation_probability,relative_humidity_2m&daily=temperature_2m_max,wind_speed_10m_max,precipitation_probability_max&timezone=Asia%2FBangkok&start_date=${selectedDate}&end_date=${selectedDate}`;
     const marineUrl = `https://marine-api.open-meteo.com/v1/marine?latitude=${targetLat}&longitude=${targetLng}&hourly=wave_height&timezone=Asia%2FBangkok&start_date=${selectedDate}&end_date=${selectedDate}`;
 
     Promise.all([
-      fetch(url).then(res => res.json()),
-      fetch(marineUrl).then(res => res.json()).catch(() => ({}))
+      fetch(url, { signal }).then(res => res.json()),
+      fetch(marineUrl, { signal }).then(res => res.json()).catch(() => ({}))
     ])
       .then(([json, marineJson]) => {
+        if (signal.aborted) return;
         if (json.hourly && json.hourly.time) {
 
           let hourlyData: HourlyWeather[] = [];
@@ -257,10 +275,14 @@ function App() {
         }
       })
       .catch((err) => {
+        if (signal.aborted) return;
         console.error("Error fetching weather:", err);
         setWeather({ temp: null, windSpeed: null, rainProb: null, hourly: [] });
       })
-      .finally(() => setWeatherLoading(false));
+      .finally(() => {
+        if (!signal.aborted) setWeatherLoading(false);
+      });
+    return () => controller.abort();
   }, [selectedLocationId, selectedDate, data, activeTab, localCoordinate]);
 
   const selectedMonth = parseInt(selectedDate.split('-')[1], 10);
@@ -364,8 +386,7 @@ function App() {
   const lunarPhase = useMemo(() => getLunarPhase(selectedDate), [selectedDate]);
 
   const isToday = useMemo(() => {
-    const todayStr = `${currentTime.getFullYear()}-${String(currentTime.getMonth() + 1).padStart(2, '0')}-${String(currentTime.getDate()).padStart(2, '0')}`;
-    return selectedDate === todayStr;
+    return selectedDate === localDateString(currentTime);
   }, [selectedDate, currentTime]);
 
   const currentLevelData = useMemo(() => {
@@ -428,38 +449,20 @@ function App() {
   }, [chartData]);
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.value || !e.target.validity.valid) return;
     setSelectedDate(e.target.value);
     setPinnedData(null);
+    setActiveHoverData(null);
   };
 
   const handleLocationChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedLocationId(e.target.value);
+    setStationId(e.target.value);
   };
 
   const selectedLocation = data.find(loc => loc.id === selectedLocationId);
   const selectedLocationName = activeTab === 'standard'
     ? (selectedLocation?.name || 'Unknown Location')
     : (localCoordinate ? `Custom (${localCoordinate.lat.toFixed(4)}, ${localCoordinate.lng.toFixed(4)})` : 'Select a location');
-
-  if (loading) {
-    return (
-      <div className="app-container">
-        <div className="dashboard-card" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
-          <h2>Loading Sea Level Data...</h2>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="app-container">
-        <div className="dashboard-card" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px', color: '#ef4444' }}>
-          <h2>Error: {error}</h2>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="app-layout">
@@ -526,7 +529,7 @@ function App() {
 
             {/* Bottom Row: Location Subtitle & Controls */}
             <div className="header-bottom-row">
-              <p className="location-subtitle"><MapPin size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} /> {selectedLocationName} (2026)</p>
+              <p className="location-subtitle"><MapPin size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} /> {selectedLocationName} ({selectedYear})</p>
 
               <div className="controls-group">
                 {/* Map Button */}
@@ -579,10 +582,12 @@ function App() {
                   <input
                     type="date"
                     className="custom-select"
-                    value={selectedDate}
+                    defaultValue={selectedDate}
                     onChange={handleDateChange}
-                    min="2026-01-01"
-                    max="2026-12-31"
+                    onBlur={e => { e.currentTarget.value = selectedDate; }}
+                    min={firstTideDate}
+                    max={lastTideDate}
+                    aria-label="Tide date"
                   />
                 </div>
                 {/* Best Fishing Time Toggle */}
@@ -630,7 +635,14 @@ function App() {
               }
             }}
           >
-            <ResponsiveContainer width="100%" height="100%">
+            {failedYear === selectedYear ? (
+              <div role="alert">
+                Could not load tide data for {selectedYear}.{' '}
+                <button onClick={() => setFailedYear(null)}>Retry</button>
+              </div>
+            ) : !yearData ? (
+              <p role="status">Loading tide data for {selectedYear}...</p>
+            ) : <ResponsiveContainer width="100%" height="100%">
               <AreaChart
                 data={chartData}
                 margin={{ top: 30, right: 10, left: -15, bottom: 0 }}
@@ -731,7 +743,7 @@ function App() {
                   />
                 )}
               </AreaChart>
-            </ResponsiveContainer>
+            </ResponsiveContainer>}
 
             {pinnedData && pinnedData.coordinate && (
               <div
@@ -816,7 +828,7 @@ function App() {
           onClose={() => setIsMapModalOpen(false)}
           locations={data}
           selectedLocationId={selectedLocationId}
-          onSelectLocation={setSelectedLocationId}
+          onSelectLocation={setStationId}
         />
 
         <WeatherModal

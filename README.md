@@ -62,7 +62,9 @@ npm run preview
 
 ### Updating Tide Data
 
-To update or add new tide data from PDFs:
+The date picker uses `public/tide_data.json` for 2026 and `public/tide_data_2027.json` for 2027. The original 2027 LLW tables are in `data_processing/PDF_2027`. [Royal Thai Navy Hydrographic Department tide tables for 2027](https://hydro.navy.mi.th/waterlevel2027)
+
+To rebuild the 2026 dataset from its PDFs:
 1. Place your target PDFs into the `data_processing/PDF` directory.
 2. Run the extraction script:
    ```bash
